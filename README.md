@@ -1,29 +1,56 @@
-# Firebase Update
+# firebase_update
 
-> **Real-time in-app updates and maintenance mode for Flutter apps using Firebase Remote Config**. The goal is simple: one package, low setup friction, customizable UI, and a clean path from basic update prompts to a complete release-control layer.
+> Real-time in-app updates and maintenance mode for Flutter, powered by Firebase Remote Config.
 
-## Table of Contents
+[![pub.dev](https://img.shields.io/pub/v/firebase_update.svg)](https://pub.dev/packages/firebase_update)
+[![License: BSD-3-Clause](https://img.shields.io/badge/license-BSD--3--Clause-blue.svg)](LICENSE)
 
-- [Quick Start](#quick-start)
-- [Vision](#vision)
-- [Key Features](#key-features)
-- [What You Get](#what-you-get)
-- [Documentation Index](#documentation-index)
-- [Planned Package Structure](#planned-package-structure)
-- [Planned Public API](#planned-public-api)
-- [Implementation Status](#implementation-status)
-- [Roadmap](#roadmap)
+One package to handle forced updates, optional updates, maintenance mode, and patch notes — with built-in UI, real-time Remote Config listening, and full customization hooks.
+
+**[Full documentation → qoder.in/resources/firebase-update](https://qoder.in/resources/firebase-update)**
+
+---
+
+## Features
+
+- **Force update** — blocks app usage when a breaking release is required
+- **Optional update** — encourages upgrade via a dismissible dialog or bottom sheet
+- **Maintenance mode** — instantly gates the app without shipping a build
+- **Patch notes** — plain text or HTML, shown inline or in the update UI
+- **Real-time updates** — reacts to Remote Config changes without an app restart
+- **Built-in UI** — default dialog and bottom sheet, no setup beyond a `navigatorKey`
+- **Custom UI** — replace any surface with your own widget builders
+- **Schema mapping** — use your own Remote Config key names
+- **`FirebaseUpdateBuilder`** — reactive widget for building your own in-screen update surfaces
+
+---
+
+## Installation
+
+```yaml
+dependencies:
+  firebase_update: ^0.0.1
+```
+
+This package requires Firebase to already be set up in your app. If you haven't done that yet, follow the [FlutterFire setup guide](https://firebase.flutter.dev/docs/overview).
+
+---
 
 ## Quick Start
 
-The package is still in planning and implementation mode, but this is the target integration experience:
+### 1. Initialize
+
+Call `initialize()` once during app bootstrap, after `Firebase.initializeApp()`:
 
 ```dart
 import 'package:firebase_update/firebase_update.dart';
 
 final navigatorKey = GlobalKey<NavigatorState>();
 
-Future<void> bootstrap() async {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+
   await FirebaseUpdate.instance.initialize(
     navigatorKey: navigatorKey,
     config: const FirebaseUpdateConfig(
@@ -40,165 +67,178 @@ Future<void> bootstrap() async {
       ),
     ),
   );
+
+  runApp(MyApp(navigatorKey: navigatorKey));
 }
 ```
 
-The intended result:
-
-- The package listens for Remote Config changes.
-- It decides whether the app is up to date, needs an optional update, needs a forced update, or should enter maintenance mode.
-- It can present package-provided UI globally through the app `navigatorKey`.
-- It can also expose update state reactively so features can render their own UI.
-
-## Vision
-
-`firebase_update` is being built as a Firebase-native control layer for Flutter apps that already use Firebase and want a better update story than ad hoc Remote Config parsing.
-
-The package should make these use cases straightforward:
-
-- Force updates that block app usage when a breaking release is required.
-- Optional updates that encourage upgrade without fully interrupting the user.
-- Maintenance mode that can shut off usage quickly without shipping a new build.
-- Patch notes that can be shown inline, in dialogs, or in bottom sheets.
-- Real-time update propagation through Firebase Remote Config listeners.
-- Fully custom presentation where the package provides the data and lifecycle, while the app owns the UI.
-
-## Key Features
-
-### Core package goals
-
-- Real-time Remote Config listening for update and maintenance changes.
-- Global presentation with only a `navigatorKey`.
-- Optional and forced update flows.
-- Maintenance mode as a first-class blocking state.
-- Patch notes with plain text or HTML support.
-- Schema mapping so teams can keep their own Remote Config key names.
-- Builder-based reactive widgets for in-screen update surfaces.
-- Custom dialog, bottom sheet, and full-screen presentation hooks.
-
-### Developer-experience goals
-
-- Minimal setup for teams that already completed Firebase setup.
-- Strong defaults for common update flows.
-- Incremental adoption: use the global listener, or just the builder, or both.
-- A package structure and docs style consistent with Qoder's other Firebase package work.
-
-## What You Get
-
-The package is intended to scale in layers:
-
-- **Always-on core**: state parsing, version comparison, Remote Config subscription, stream-based update events.
-- **Global UX layer**: show an update dialog, bottom sheet, or maintenance screen without passing `BuildContext` around the app.
-- **Reactive UI layer**: `FirebaseUpdateBuilder` and related widgets for inline notices, settings screens, and release note surfaces.
-- **Customization layer**: map your own schema, inject your own widgets, own your own visuals, and decide how aggressive the UX should be.
-
-## Documentation Index
-
-Use the README as the landing page. The deeper planning and implementation docs live under `documentation/`.
-
-- [Documentation barrel](documentation/index.md)
-- [Product vision](documentation/vision.md)
-- [Full package plan](documentation/plan.md)
-- [Manual implementation example](documentation/manual-implementation-example.md)
-- [Current status](documentation/status.md)
-- [Current features](documentation/current-features.md)
-- [Roadmap](documentation/roadmap.md)
-- [Architecture plan](documentation/architecture.md)
-- [Configuration schema plan](documentation/configuration-schema.md)
-- [Implementation plan](documentation/implementation-plan.md)
-- [Feature: In-app updates](documentation/features/in-app-updates.md)
-- [Feature: Maintenance mode](documentation/features/maintenance-mode.md)
-- [Feature: Patch notes](documentation/features/patch-notes.md)
-- [Feature: Custom UI](documentation/features/custom-ui.md)
-- [Feature: Realtime updates](documentation/features/realtime-updates.md)
-- [Feature: FirebaseUpdateBuilder](documentation/features/firebase-update-builder.md)
-
-## Planned Package Structure
-
-The structure should follow the same documentation-first discipline used in `reference/firebase_messaging_handler`, while staying smaller and focused on update orchestration.
-
-```text
-lib/
-  firebase_update.dart
-  src/
-    core/
-    config/
-    models/
-    services/
-    presentation/
-    widgets/
-    utils/
-
-documentation/
-  index.md
-  vision.md
-  status.md
-  roadmap.md
-  architecture.md
-  configuration-schema.md
-  implementation-plan.md
-  features/
-    in-app-updates.md
-    maintenance-mode.md
-    patch-notes.md
-    custom-ui.md
-    realtime-updates.md
-    firebase-update-builder.md
-```
-
-## Planned Public API
-
-The public API should stay narrow and ergonomic.
+Pass the same `navigatorKey` to your `MaterialApp`:
 
 ```dart
-class FirebaseUpdate {
-  static FirebaseUpdate get instance;
+MaterialApp(
+  navigatorKey: navigatorKey,
+  home: const HomeScreen(),
+)
+```
 
-  Future<void> initialize({
-    required GlobalKey<NavigatorState> navigatorKey,
-    required FirebaseUpdateConfig config,
-  });
+That's it. The package now listens for Remote Config changes and automatically presents the appropriate UI when an update or maintenance state is detected.
 
-  Stream<FirebaseUpdateState> get stream;
-  FirebaseUpdateState get currentState;
-  Future<void> checkNow();
-}
+---
 
-class FirebaseUpdateBuilder extends StatelessWidget {
-  const FirebaseUpdateBuilder({
-    super.key,
-    required this.builder,
-  });
+## Remote Config Schema
 
-  final Widget Function(
-    BuildContext context,
-    FirebaseUpdateState state,
-  ) builder;
+Set up a JSON parameter in Firebase Remote Config. The key name (`app_update` in the example above) is whatever you set as `remoteConfigKey`. The field names inside the JSON are whatever you map in `FirebaseUpdateFieldMapping`.
+
+```json
+{
+  "min_version": "2.0.0",
+  "latest_version": "2.3.1",
+  "update_type": "optional",
+  "maintenance_enabled": false,
+  "maintenance_message": "We'll be back shortly.",
+  "patch_notes": "• Bug fixes\n• Performance improvements",
+  "patch_notes_format": "plain",
+  "store_url": ""
 }
 ```
 
-Final API names can move, but the shape should remain simple.
+| Field | Type | Description |
+|---|---|---|
+| `min_version` | string | Minimum version required. Below this → force update. |
+| `latest_version` | string | Latest available version. Below this → optional update. |
+| `update_type` | string | `"optional"` or `"force"` — overrides version logic if set. |
+| `maintenance_enabled` | bool | When `true`, the app enters maintenance mode. |
+| `maintenance_title` | string | Title shown on the maintenance screen. |
+| `maintenance_message` | string | Message shown on the maintenance screen. |
+| `patch_notes` | string | Release notes to show alongside the update prompt. |
+| `patch_notes_format` | string | `"plain"` (default) or `"html"`. |
+| `store_url` | string | Direct store URL. Falls back to `FirebaseUpdateFallbackStoreUrls` if empty. |
 
-## Implementation Status
+---
 
-Current state of the repository:
+## Update States
 
-- Core production package code now exists.
-- Remote Config-backed runtime plumbing is partially implemented.
-- Default package-managed presentation exists, but still needs major design and customization upgrades.
-- Documentation remains the active source of truth for implementation sequencing.
+`FirebaseUpdateState.kind` is one of:
 
-See [documentation/status.md](documentation/status.md) for the detailed status log.
+| Kind | Meaning |
+|---|---|
+| `idle` | Not yet initialized. |
+| `upToDate` | App version meets the minimum requirement. |
+| `optionalUpdate` | A newer version is available, but the app is usable. |
+| `forceUpdate` | App version is below the minimum. Usage is blocked. |
+| `maintenance` | Maintenance mode is active. Usage is blocked. |
 
-## Roadmap
+`state.isBlocking` is `true` for `forceUpdate` and `maintenance`.
 
-Near-term priorities:
+---
 
-1. Replace the placeholder package scaffold with real library structure.
-2. Implement config parsing and schema mapping.
-3. Add Remote Config subscription and state stream handling.
-4. Build global presentation flows for optional update, forced update, and maintenance.
-5. Add patch note rendering and `FirebaseUpdateBuilder`.
-6. Write examples, tests, and setup docs once the API is stable.
+## Configuration
 
-Detailed milestone planning lives in [documentation/roadmap.md](documentation/roadmap.md).
+```dart
+FirebaseUpdateConfig(
+  remoteConfigKey: 'app_update',     // Remote Config parameter key
+  fields: FirebaseUpdateFieldMapping(...),
+
+  // Optional
+  currentVersion: '2.1.0',           // Override auto-detected version
+  fetchTimeout: Duration(seconds: 60),
+  minimumFetchInterval: Duration(hours: 12),
+  listenToRealtimeUpdates: true,      // React to RC changes without restart
+  enableDefaultPresentation: true,    // Set false to fully own the UI
+  useBottomSheetForOptionalUpdate: true, // false = dialog instead
+  fallbackStoreUrls: FirebaseUpdateFallbackStoreUrls(
+    android: 'https://play.google.com/store/apps/details?id=com.example.app',
+    ios: 'https://apps.apple.com/app/id000000000',
+  ),
+  presentation: FirebaseUpdatePresentation(...), // Custom UI builders
+)
+```
+
+---
+
+## Custom UI
+
+Disable the default presentation and supply your own builders per surface:
+
+```dart
+FirebaseUpdateConfig(
+  remoteConfigKey: 'app_update',
+  fields: FirebaseUpdateFieldMapping(minimumVersion: 'min_version'),
+  presentation: FirebaseUpdatePresentation(
+    forceUpdateDialogBuilder: (context, data) {
+      return MyForceUpdateDialog(data: data);
+    },
+    optionalUpdateBottomSheetBuilder: (context, data) {
+      return MyUpdateSheet(data: data);
+    },
+    maintenanceDialogBuilder: (context, data) {
+      return MyMaintenanceScreen(data: data);
+    },
+  ),
+)
+```
+
+Each builder receives a `FirebaseUpdatePresentationData` with the resolved title, state, primary/secondary action labels, and tap callbacks — so your widget doesn't need to re-implement the action logic.
+
+### Theming the default UI
+
+```dart
+FirebaseUpdatePresentation(
+  theme: FirebaseUpdatePresentationTheme(
+    accentColor: Colors.indigo,
+    accentForegroundColor: Colors.white,
+    surfaceColor: Colors.white,
+    heroGradient: LinearGradient(
+      colors: [Colors.indigo.shade800, Colors.indigo.shade400],
+    ),
+    dialogBorderRadius: BorderRadius.circular(24),
+  ),
+)
+```
+
+---
+
+## Reactive Widget
+
+Use `FirebaseUpdateBuilder` to build your own in-screen update surfaces — a settings row, a banner, or anything else that should react to update state:
+
+```dart
+FirebaseUpdateBuilder(
+  builder: (context, state) {
+    if (state.kind == FirebaseUpdateKind.optionalUpdate) {
+      return UpdateBanner(version: state.latestVersion);
+    }
+    return const SizedBox.shrink();
+  },
+)
+```
+
+---
+
+## API Reference
+
+```dart
+// Initialize once at app startup
+await FirebaseUpdate.instance.initialize(
+  navigatorKey: navigatorKey,
+  config: config,
+);
+
+// Force an immediate Remote Config fetch and re-evaluate state
+await FirebaseUpdate.instance.checkNow();
+
+// Current state (synchronous)
+FirebaseUpdateState state = FirebaseUpdate.instance.currentState;
+
+// Reactive stream of state changes
+Stream<FirebaseUpdateState> stream = FirebaseUpdate.instance.stream;
+
+// Apply a raw payload manually (useful for testing or custom sources)
+await FirebaseUpdate.instance.applyPayload({'min_version': '2.0.0', ...});
+```
+
+---
+
+## License
+
+BSD-3-Clause © [Qoder](https://qoder.in)
