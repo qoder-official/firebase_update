@@ -37,7 +37,7 @@ void main() {
       'latest_version': '2.6.0',
       'update_type': 'optional',
       'patch_notes': 'Optional update notes',
-      'store_url': 'https://qoder.com/app-update',
+      'store_url': 'https://qoder.in/app-update',
     });
     await tester.pumpAndSettle();
 
@@ -260,6 +260,140 @@ void main() {
     expect(find.text('Scheduled maintenance'), findsOneWidget);
     expect(find.text('Please try again shortly.'), findsOneWidget);
     expect(find.text('Later'), findsNothing);
+  });
+
+  testWidgets(
+    'optional update is not re-shown after user dismisses the same version',
+    (tester) async {
+      final navigatorKey = GlobalKey<NavigatorState>();
+
+      await FirebaseUpdate.instance.initialize(
+        navigatorKey: navigatorKey,
+        config: const FirebaseUpdateConfig(
+          remoteConfigKey: 'app_update',
+          currentVersion: '2.4.0',
+          useBottomSheetForOptionalUpdate: false,
+          fields: FirebaseUpdateFieldMapping(
+            minimumVersion: 'min_version',
+            latestVersion: 'latest_version',
+            updateType: 'update_type',
+          ),
+        ),
+      );
+
+      await tester.pumpWidget(_HarnessApp(navigatorKey: navigatorKey));
+      await tester.pumpAndSettle();
+
+      // Show the optional update dialog for version 2.6.0.
+      await FirebaseUpdate.instance.applyPayload({
+        'min_version': '2.0.0',
+        'latest_version': '2.6.0',
+        'update_type': 'optional',
+      });
+      await tester.pumpAndSettle();
+      expect(find.text('Update available'), findsOneWidget);
+
+      // User taps Later — skips version 2.6.0.
+      await tester.tap(find.text('Later'));
+      await tester.pumpAndSettle();
+      expect(find.text('Update available'), findsNothing);
+
+      // Real-time config fires again with the same version — should not re-show.
+      await FirebaseUpdate.instance.applyPayload({
+        'min_version': '2.0.0',
+        'latest_version': '2.6.0',
+        'update_type': 'optional',
+      });
+      await tester.pumpAndSettle();
+      expect(find.text('Update available'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'optional update re-appears when a newer version becomes available after skip',
+    (tester) async {
+      final navigatorKey = GlobalKey<NavigatorState>();
+
+      await FirebaseUpdate.instance.initialize(
+        navigatorKey: navigatorKey,
+        config: const FirebaseUpdateConfig(
+          remoteConfigKey: 'app_update',
+          currentVersion: '2.4.0',
+          useBottomSheetForOptionalUpdate: false,
+          fields: FirebaseUpdateFieldMapping(
+            minimumVersion: 'min_version',
+            latestVersion: 'latest_version',
+            updateType: 'update_type',
+          ),
+        ),
+      );
+
+      await tester.pumpWidget(_HarnessApp(navigatorKey: navigatorKey));
+      await tester.pumpAndSettle();
+
+      // Show and skip version 2.6.0.
+      await FirebaseUpdate.instance.applyPayload({
+        'min_version': '2.0.0',
+        'latest_version': '2.6.0',
+        'update_type': 'optional',
+      });
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Later'));
+      await tester.pumpAndSettle();
+
+      // A newer version 2.7.0 is released — dialog should appear again.
+      await FirebaseUpdate.instance.applyPayload({
+        'min_version': '2.0.0',
+        'latest_version': '2.7.0',
+        'update_type': 'optional',
+      });
+      await tester.pumpAndSettle();
+      expect(find.text('Update available'), findsOneWidget);
+    },
+  );
+
+  testWidgets('plain text patch notes truncate and expand with read more', (
+    tester,
+  ) async {
+    final navigatorKey = GlobalKey<NavigatorState>();
+
+    await FirebaseUpdate.instance.initialize(
+      navigatorKey: navigatorKey,
+      config: const FirebaseUpdateConfig(
+        remoteConfigKey: 'app_update',
+        currentVersion: '2.4.0',
+        useBottomSheetForOptionalUpdate: false,
+        fields: FirebaseUpdateFieldMapping(
+          minimumVersion: 'min_version',
+          latestVersion: 'latest_version',
+          updateType: 'update_type',
+          patchNotes: 'patch_notes',
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(_HarnessApp(navigatorKey: navigatorKey));
+    await tester.pumpAndSettle();
+
+    // Six lines of patch notes — the default collapsed threshold is 5.
+    await FirebaseUpdate.instance.applyPayload({
+      'min_version': '2.0.0',
+      'latest_version': '2.6.0',
+      'update_type': 'optional',
+      'patch_notes': 'Line one\nLine two\nLine three\nLine four\nLine five\nLine six',
+    });
+    await tester.pumpAndSettle();
+
+    expect(find.text('Update available'), findsOneWidget);
+    expect(find.textContaining('Line five'), findsOneWidget);
+    expect(find.textContaining('Line six'), findsNothing);
+    expect(find.text('Read more'), findsOneWidget);
+
+    await tester.tap(find.text('Read more'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Line six'), findsOneWidget);
+    expect(find.text('Show less'), findsOneWidget);
   });
 
   testWidgets('html patch notes are rendered without raw html tags', (

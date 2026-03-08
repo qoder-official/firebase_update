@@ -1,6 +1,6 @@
 # firebase_update
 
-> Real-time in-app updates and maintenance mode for Flutter, powered by Firebase Remote Config.
+> Control your app's update story from Firebase — without shipping a new build.
 
 [![pub.dev](https://img.shields.io/pub/v/firebase_update.svg)](https://pub.dev/packages/firebase_update)
 [![License: BSD-3-Clause](https://img.shields.io/badge/license-BSD--3--Clause-blue.svg)](LICENSE)
@@ -8,6 +8,25 @@
 One package to handle forced updates, optional updates, maintenance mode, and patch notes — with built-in UI, real-time Remote Config listening, and full customization hooks.
 
 **[Full documentation → qoder.in/resources/firebase-update](https://qoder.in/resources/firebase-update)**
+
+---
+
+## Why firebase_update?
+
+Most Flutter update packages scrape the App Store listing or wrap a platform API — they tell you *what version is available*, but they can't tell your app *what to do about it* in real time.
+
+| | firebase_update | upgrader | in_app_update | new_version_plus |
+|---|:---:|:---:|:---:|:---:|
+| Server-side update control | ✅ | ✗ | ✗ | ✗ |
+| Maintenance / kill switch | ✅ | ✗ | ✗ | ✗ |
+| Real-time propagation (no restart) | ✅ | ✗ | ✗ | ✗ |
+| Patch notes alongside prompt | ✅ | ✗ | ✗ | ✗ |
+| Custom field mapping | ✅ | ✗ | ✗ | ✗ |
+| Fully custom UI builders | ✅ | partial | ✗ | ✗ |
+| iOS + Android | ✅ | ✅ | Android only | ✅ |
+| Works without store listing | ✅ | ✗ | ✗ | ✗ |
+
+> You already have Firebase. Now get update control for free.
 
 ---
 
@@ -236,6 +255,12 @@ Stream<FirebaseUpdateState> stream = FirebaseUpdate.instance.stream;
 // Apply a raw payload manually (useful for testing or custom sources)
 await FirebaseUpdate.instance.applyPayload({'min_version': '2.0.0', ...});
 ```
+
+---
+
+## Keywords
+
+`flutter force update` · `flutter maintenance mode` · `flutter in-app update` · `firebase remote config update` · `flutter app update prompt` · `flutter update dialog` · `flutter update wall` · `flutter app gate` · `real-time update control` · `no-code update control`
 
 ---
 

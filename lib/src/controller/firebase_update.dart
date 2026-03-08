@@ -14,6 +14,22 @@ import '../services/package_info_app_version_provider.dart';
 import '../services/remote_config_payload_source.dart';
 import '../services/store_launcher.dart';
 
+/// The singleton entry point for `firebase_update`.
+///
+/// Call [initialize] once after `Firebase.initializeApp()` to start the update
+/// check lifecycle. After initialization the package monitors Remote Config
+/// in real time and surfaces update state through [stream], [currentState],
+/// and the default package-managed UI when a `navigatorKey` is provided.
+///
+/// ```dart
+/// await FirebaseUpdate.instance.initialize(
+///   navigatorKey: rootNavigatorKey,
+///   config: const FirebaseUpdateConfig(
+///     remoteConfigKey: 'app_update',
+///     fields: FirebaseUpdateFieldMapping(minimumVersion: 'min_version'),
+///   ),
+/// );
+/// ```
 class FirebaseUpdate {
   FirebaseUpdate._({
     AppVersionProvider? appVersionProvider,
@@ -27,6 +43,7 @@ class FirebaseUpdate {
          storeLauncher: storeLauncher ?? const AppReviewStoreLauncher(),
        );
 
+  /// The shared singleton instance.
   static final FirebaseUpdate instance = FirebaseUpdate._();
 
   final StreamController<FirebaseUpdateState> _controller =
@@ -45,11 +62,25 @@ class FirebaseUpdate {
   StreamSubscription<Map<String, dynamic>?>? _payloadSubscription;
   String? _currentVersion;
 
+  /// A broadcast stream of [FirebaseUpdateState] that emits on every state
+  /// change, including real-time Remote Config updates.
   Stream<FirebaseUpdateState> get stream => _controller.stream;
+
+  /// The most recently resolved [FirebaseUpdateState].
   FirebaseUpdateState get currentState => _currentState;
+
+  /// The navigator key that was passed to [initialize], if any.
   GlobalKey<NavigatorState>? get navigatorKey => _navigatorKey;
+
+  /// The active [FirebaseUpdateConfig], or `null` before [initialize].
   FirebaseUpdateConfig? get config => _config;
 
+  /// Initializes the package with the given [navigatorKey] and [config].
+  ///
+  /// Performs an immediate Remote Config fetch, then subscribes to real-time
+  /// updates if [FirebaseUpdateConfig.listenToRealtimeUpdates] is `true`.
+  ///
+  /// Must be called after `Firebase.initializeApp()`.
   Future<void> initialize({
     required GlobalKey<NavigatorState> navigatorKey,
     required FirebaseUpdateConfig config,
@@ -77,6 +108,7 @@ class FirebaseUpdate {
         });
   }
 
+  /// Triggers an immediate Remote Config fetch and emits the resolved state.
   Future<void> checkNow() async {
     final config = _config;
     if (config == null) {
@@ -97,6 +129,9 @@ class FirebaseUpdate {
     await _refreshFromRemoteConfig(config);
   }
 
+  /// Resolves and emits a state from a raw Remote Config [rawPayload] map.
+  ///
+  /// Useful in test harnesses or when driving state from a custom source.
   Future<FirebaseUpdateState> applyPayload(
     Map<String, dynamic>? rawPayload, {
     String? currentVersion,

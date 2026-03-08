@@ -4,6 +4,11 @@ import 'firebase_update_kind.dart';
 import 'firebase_update_patch_notes_format.dart';
 import 'firebase_update_payload.dart';
 
+/// The resolved update state emitted by `firebase_update`.
+///
+/// Consumers can read [kind] to branch on the current state, and use the
+/// remaining fields to drive UI copy, version display, and patch-note
+/// rendering.
 @immutable
 class FirebaseUpdateState {
   const FirebaseUpdateState({
@@ -22,6 +27,7 @@ class FirebaseUpdateState {
     this.payload,
   });
 
+  /// Convenience constructor for the uninitialized idle state.
   const FirebaseUpdateState.idle({
     this.isInitialized = false,
     this.message = 'Firebase Update is not initialized yet.',
@@ -37,20 +43,51 @@ class FirebaseUpdateState {
        maintenanceMessage = null,
        payload = null;
 
+  /// The resolved [FirebaseUpdateKind] for this state.
   final FirebaseUpdateKind kind;
+
+  /// Whether [FirebaseUpdate.initialize] has been called.
   final bool isInitialized;
+
+  /// The dialog or sheet title resolved from Remote Config, or `null` when
+  /// the default presenter copy should be used.
   final String? title;
+
+  /// The running app version string at the time of the last check.
   final String? currentVersion;
+
+  /// The minimum supported version string from Remote Config.
   final String? minimumVersion;
+
+  /// The latest available version string from Remote Config.
   final String? latestVersion;
+
+  /// The dialog or sheet body message resolved from Remote Config.
   final String? message;
+
+  /// Patch notes string from Remote Config, rendered according to
+  /// [patchNotesFormat].
   final String? patchNotes;
+
+  /// The format to use when rendering [patchNotes].
   final FirebaseUpdatePatchNotesFormat patchNotesFormat;
+
+  /// Store URL from Remote Config. Falls back to
+  /// [FirebaseUpdateFallbackStoreUrls] when `null`.
   final String? storeUrl;
+
+  /// Maintenance dialog title from Remote Config.
   final String? maintenanceTitle;
+
+  /// Maintenance dialog body message from Remote Config.
   final String? maintenanceMessage;
+
+  /// The raw parsed payload that produced this state, exposed for advanced
+  /// consumers that need access to unmapped fields.
   final FirebaseUpdatePayload? payload;
 
+  /// Whether this state blocks user interaction (`forceUpdate` or
+  /// `maintenance`).
   bool get isBlocking =>
       kind == FirebaseUpdateKind.forceUpdate ||
       kind == FirebaseUpdateKind.maintenance;

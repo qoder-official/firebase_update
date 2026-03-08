@@ -18,6 +18,7 @@ class DefaultUpdatePresenter {
 
   final StoreLauncher _storeLauncher;
   FirebaseUpdateKind? _presentedKind;
+  String? _skippedVersion;
 
   void presentIfNeeded({
     required FirebaseUpdateState state,
@@ -32,7 +33,23 @@ class DefaultUpdatePresenter {
         state.kind == FirebaseUpdateKind.upToDate) {
       if (state.kind == FirebaseUpdateKind.upToDate) {
         _presentedKind = null;
+        _skippedVersion = null;
       }
+      return;
+    }
+
+    // Clear skip if a newer version is now being offered.
+    if (state.kind == FirebaseUpdateKind.optionalUpdate &&
+        _skippedVersion != null &&
+        state.latestVersion != null &&
+        state.latestVersion != _skippedVersion) {
+      _skippedVersion = null;
+    }
+
+    // Suppress presentation if the user already dismissed this specific version.
+    if (state.kind == FirebaseUpdateKind.optionalUpdate &&
+        state.latestVersion != null &&
+        state.latestVersion == _skippedVersion) {
       return;
     }
 
@@ -97,6 +114,9 @@ class DefaultUpdatePresenter {
     FirebaseUpdateState state,
     FirebaseUpdateConfig config,
   ) async {
+    final versionBeingOffered = state.latestVersion;
+    bool userSkipped = false;
+
     final data = FirebaseUpdatePresentationData(
       title: state.title ?? 'Update available',
       state: state,
@@ -114,6 +134,9 @@ class DefaultUpdatePresenter {
         context: context,
         config: config,
         data: data,
+        onSkip: () {
+          userSkipped = true;
+        },
       );
     } else {
       await showDialog<void>(
@@ -122,8 +145,10 @@ class DefaultUpdatePresenter {
         barrierColor: config.presentation.theme.barrierColor,
         builder: (dialogContext) {
           final dialogData = data.copyWith(
-            onSecondaryTap: () =>
-                Navigator.of(dialogContext, rootNavigator: true).pop(),
+            onSecondaryTap: () {
+              userSkipped = true;
+              Navigator.of(dialogContext, rootNavigator: true).pop();
+            },
           );
           return _BlurredModalWrapper(
             sigma: config.presentation.theme.dialogBackgroundBlurSigma,
@@ -142,6 +167,9 @@ class DefaultUpdatePresenter {
       );
     }
 
+    if (userSkipped && versionBeingOffered != null) {
+      _skippedVersion = versionBeingOffered;
+    }
     _presentedKind = null;
   }
 
@@ -245,6 +273,7 @@ class DefaultUpdatePresenter {
     required BuildContext context,
     required FirebaseUpdateConfig config,
     required FirebaseUpdatePresentationData data,
+    required VoidCallback onSkip,
   }) async {
     await showGeneralDialog<void>(
       context: context,
@@ -255,8 +284,10 @@ class DefaultUpdatePresenter {
       transitionDuration: const Duration(milliseconds: 250),
       pageBuilder: (dialogContext, animation, secondaryAnimation) {
         final sheetData = data.copyWith(
-          onSecondaryTap: () =>
-              Navigator.of(dialogContext, rootNavigator: true).pop(),
+          onSecondaryTap: () {
+            onSkip();
+            Navigator.of(dialogContext, rootNavigator: true).pop();
+          },
         );
         final child =
             config.presentation.optionalUpdateBottomSheetBuilder?.call(
@@ -585,6 +616,7 @@ class _DefaultUpdatePanel extends StatelessWidget {
                             notes: state.patchNotes!,
                             format: state.patchNotesFormat,
                             centerText: false,
+                            readMoreColor: theme.accentColor,
                             style: Theme.of(context).textTheme.bodyMedium
                                 ?.copyWith(
                                   color: theme.contentColor.withValues(
@@ -647,94 +679,159 @@ class _DefaultUpdatePanel extends StatelessWidget {
   }
 }
 
-class _PatchNotesContent extends StatelessWidget {
+class _PatchNotesContent extends StatefulWidget {
   const _PatchNotesContent({
     required this.notes,
     required this.format,
     required this.centerText,
     this.style,
+    this.readMoreColor,
   });
 
   final String notes;
   final FirebaseUpdatePatchNotesFormat format;
   final bool centerText;
   final TextStyle? style;
+  final Color? readMoreColor;
+
+  static const int _maxCollapsedLines = 5;
+  static const double _htmlCollapsedMaxHeight = 120.0;
+
+  @override
+  State<_PatchNotesContent> createState() => _PatchNotesContentState();
+}
+
+class _PatchNotesContentState extends State<_PatchNotesContent> {
+  bool _expanded = false;
 
   @override
   Widget build(BuildContext context) {
-    final resolvedStyle = style ?? Theme.of(context).textTheme.bodyMedium;
-    if (format == FirebaseUpdatePatchNotesFormat.html) {
-      return Html(
-        data: notes,
-        style: {
-          'html': Style(
-            margin: Margins.zero,
-            padding: HtmlPaddings.zero,
-            color: resolvedStyle?.color,
-            fontSize: resolvedStyle?.fontSize != null
-                ? FontSize(resolvedStyle!.fontSize!)
-                : null,
-            lineHeight: resolvedStyle?.height != null
-                ? LineHeight(resolvedStyle!.height!)
-                : null,
-            textAlign: TextAlign.start,
-          ),
-          'body': Style(
-            margin: Margins.zero,
-            padding: HtmlPaddings.zero,
-            color: resolvedStyle?.color,
-            fontSize: resolvedStyle?.fontSize != null
-                ? FontSize(resolvedStyle!.fontSize!)
-                : null,
-            lineHeight: resolvedStyle?.height != null
-                ? LineHeight(resolvedStyle!.height!)
-                : null,
-            textAlign: TextAlign.start,
-          ),
-          'ul': Style(
-            margin: Margins.zero,
-            padding: HtmlPaddings.only(left: 18),
-          ),
-          'ol': Style(
-            margin: Margins.zero,
-            padding: HtmlPaddings.only(left: 18),
-          ),
-          'li': Style(
-            margin: Margins.only(bottom: 6),
-            padding: HtmlPaddings.zero,
-            textAlign: TextAlign.start,
-          ),
-          'p': Style(
-            margin: Margins.only(bottom: 6),
-            padding: HtmlPaddings.zero,
-            textAlign: TextAlign.start,
-          ),
-        },
-      );
+    final resolvedStyle =
+        widget.style ?? Theme.of(context).textTheme.bodyMedium;
+    final readMoreStyle = resolvedStyle?.copyWith(
+      color: widget.readMoreColor ?? Theme.of(context).colorScheme.primary,
+      fontWeight: FontWeight.w600,
+    );
+
+    if (widget.format == FirebaseUpdatePatchNotesFormat.html) {
+      return _buildHtml(resolvedStyle, readMoreStyle);
     }
 
-    final lines = notes
+    return _buildPlainText(resolvedStyle, readMoreStyle);
+  }
+
+  Widget _buildPlainText(TextStyle? style, TextStyle? readMoreStyle) {
+    final lines = widget.notes
         .split('\n')
         .map((line) => line.trim())
         .where((line) => line.isNotEmpty)
         .toList();
 
+    final needsToggle = lines.length > _PatchNotesContent._maxCollapsedLines;
+    final visibleLines = (!_expanded && needsToggle)
+        ? lines.take(_PatchNotesContent._maxCollapsedLines).toList()
+        : lines;
+
     return Column(
-      crossAxisAlignment: centerText
+      crossAxisAlignment: widget.centerText
           ? CrossAxisAlignment.center
           : CrossAxisAlignment.start,
-      children: lines
-          .map(
-            (line) => Padding(
-              padding: const EdgeInsets.only(bottom: 6),
+      children: [
+        ...visibleLines.map(
+          (line) => Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Text(
+              line,
+              textAlign: widget.centerText ? TextAlign.center : TextAlign.start,
+              style: style,
+            ),
+          ),
+        ),
+        if (needsToggle)
+          GestureDetector(
+            onTap: () => setState(() => _expanded = !_expanded),
+            child: Padding(
+              padding: const EdgeInsets.only(top: 4),
               child: Text(
-                line,
-                textAlign: centerText ? TextAlign.center : TextAlign.start,
-                style: resolvedStyle,
+                _expanded ? 'Show less' : 'Read more',
+                style: readMoreStyle,
               ),
             ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildHtml(TextStyle? style, TextStyle? readMoreStyle) {
+    final htmlWidget = Html(
+      data: widget.notes,
+      style: {
+        'html': Style(
+          margin: Margins.zero,
+          padding: HtmlPaddings.zero,
+          color: style?.color,
+          fontSize: style?.fontSize != null ? FontSize(style!.fontSize!) : null,
+          lineHeight: style?.height != null ? LineHeight(style!.height!) : null,
+          textAlign: TextAlign.start,
+        ),
+        'body': Style(
+          margin: Margins.zero,
+          padding: HtmlPaddings.zero,
+          color: style?.color,
+          fontSize: style?.fontSize != null ? FontSize(style!.fontSize!) : null,
+          lineHeight: style?.height != null ? LineHeight(style!.height!) : null,
+          textAlign: TextAlign.start,
+        ),
+        'ul': Style(margin: Margins.zero, padding: HtmlPaddings.only(left: 18)),
+        'ol': Style(margin: Margins.zero, padding: HtmlPaddings.only(left: 18)),
+        'li': Style(
+          margin: Margins.only(bottom: 6),
+          padding: HtmlPaddings.zero,
+          textAlign: TextAlign.start,
+        ),
+        'p': Style(
+          margin: Margins.only(bottom: 6),
+          padding: HtmlPaddings.zero,
+          textAlign: TextAlign.start,
+        ),
+      },
+    );
+
+    // Use a character-count heuristic to decide if read-more is needed.
+    // Strip tags to get an estimate of rendered content length.
+    final strippedLength = widget.notes
+        .replaceAll(RegExp(r'<[^>]*>'), '')
+        .trim()
+        .length;
+    final needsToggle = strippedLength > 280;
+
+    if (!needsToggle) {
+      return htmlWidget;
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (!_expanded)
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: _PatchNotesContent._htmlCollapsedMaxHeight,
+            ),
+            child: ClipRect(child: htmlWidget),
           )
-          .toList(),
+        else
+          htmlWidget,
+        GestureDetector(
+          onTap: () => setState(() => _expanded = !_expanded),
+          child: Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(
+              _expanded ? 'Show less' : 'Read more',
+              style: readMoreStyle,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

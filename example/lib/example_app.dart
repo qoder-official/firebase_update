@@ -149,7 +149,7 @@ root key: app_update
   "maintenance_enabled": false,
   "patch_notes": "<ul><li>Security improvements</li></ul>",
   "patch_notes_format": "html",
-  "store_url": "https://qoder.com/app-update"
+  "store_url": "https://qoder.in/app-update"
 }
 ''',
               ),
@@ -275,7 +275,7 @@ class _SimulatorPanel extends StatelessWidget {
       'patch_notes':
           'Version 2.6.0 adds faster startup, cleaner onboarding, and bug fixes.',
       'patch_notes_format': 'text',
-      'store_url': 'https://qoder.com/app-update',
+      'store_url': 'https://qoder.in/app-update',
     });
   }
 
@@ -290,7 +290,7 @@ class _SimulatorPanel extends StatelessWidget {
       'patch_notes':
           '<ul><li>Security fixes</li><li>Required backend compatibility changes</li></ul>',
       'patch_notes_format': 'html',
-      'store_url': 'https://qoder.com/app-update',
+      'store_url': 'https://qoder.in/app-update',
     });
   }
 
