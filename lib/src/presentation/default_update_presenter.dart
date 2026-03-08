@@ -132,7 +132,7 @@ class DefaultUpdatePresenter {
       secondaryLabel: 'Later',
       onPrimaryTap: () => _launchStore(
         context,
-        fallbackUrl: state.storeUrl ?? _resolveFallbackStoreUrl(config),
+        fallbackUrl: _resolveStoreUrl(config),
       ),
     );
 
@@ -195,7 +195,7 @@ class DefaultUpdatePresenter {
       primaryLabel: 'Update now',
       onPrimaryTap: () => _launchStore(
         context,
-        fallbackUrl: state.storeUrl ?? _resolveFallbackStoreUrl(config),
+        fallbackUrl: _resolveStoreUrl(config),
       ),
     );
 
@@ -363,22 +363,19 @@ class DefaultUpdatePresenter {
     );
   }
 
-  String? _resolveFallbackStoreUrl(FirebaseUpdateConfig config) {
-    if (kIsWeb) {
-      return config.fallbackStoreUrls.web;
-    }
-
+  String? _resolveStoreUrl(FirebaseUpdateConfig config) {
+    if (kIsWeb) return config.storeUrls.web;
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
-        return config.fallbackStoreUrls.android;
+        return config.storeUrls.android;
       case TargetPlatform.iOS:
-        return config.fallbackStoreUrls.ios;
+        return config.storeUrls.ios;
       case TargetPlatform.macOS:
-        return config.fallbackStoreUrls.macos;
+        return config.storeUrls.macos;
       case TargetPlatform.windows:
-        return config.fallbackStoreUrls.windows;
+        return config.storeUrls.windows;
       case TargetPlatform.linux:
-        return config.fallbackStoreUrls.linux;
+        return config.storeUrls.linux;
       case TargetPlatform.fuchsia:
         return null;
     }

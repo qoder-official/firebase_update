@@ -1,59 +1,63 @@
-import '../config/firebase_update_config.dart';
 import '../models/firebase_update_patch_notes_format.dart';
 import '../models/firebase_update_payload.dart';
+
+/// Fixed Remote Config field names used by the package.
+///
+/// These are the keys the package reads from the JSON value stored under
+/// [FirebaseUpdateConfig.remoteConfigKey]. Use the same names in your Remote
+/// Config schema, or refer to the README for the full expected shape.
+abstract final class FirebaseUpdateSchema {
+  static const minimumVersion = 'min_version';
+  static const latestVersion = 'latest_version';
+  static const updateType = 'update_type';
+  static const updateTitle = 'update_title';
+  static const updateMessage = 'update_message';
+  static const forceUpdateTitle = 'force_update_title';
+  static const forceUpdateMessage = 'force_update_message';
+  static const optionalUpdateTitle = 'optional_update_title';
+  static const optionalUpdateMessage = 'optional_update_message';
+  static const maintenanceEnabled = 'maintenance_enabled';
+  static const maintenanceTitle = 'maintenance_title';
+  static const maintenanceMessage = 'maintenance_message';
+  static const patchNotes = 'patch_notes';
+  static const patchNotesFormat = 'patch_notes_format';
+}
 
 class FirebaseUpdatePayloadParser {
   const FirebaseUpdatePayloadParser();
 
-  FirebaseUpdatePayload parse({
-    required FirebaseUpdateConfig config,
-    required Map<String, dynamic>? rawPayload,
-  }) {
-    final payload = rawPayload ?? const <String, dynamic>{};
-    final fields = config.fields;
+  FirebaseUpdatePayload parse(Map<String, dynamic>? rawPayload) {
+    final p = rawPayload ?? const <String, dynamic>{};
 
     return FirebaseUpdatePayload(
-      minimumVersion: _readString(payload, fields.minimumVersion),
-      latestVersion: _readString(payload, fields.latestVersion),
-      updateTitle: _readString(payload, fields.updateTitle),
-      updateMessage: _readString(payload, fields.updateMessage),
-      forceUpdateTitle: _readString(payload, fields.forceUpdateTitle),
-      forceUpdateMessage: _readString(payload, fields.forceUpdateMessage),
-      optionalUpdateTitle: _readString(payload, fields.optionalUpdateTitle),
-      optionalUpdateMessage: _readString(payload, fields.optionalUpdateMessage),
-      updateType: _readString(payload, fields.updateType),
-      maintenanceEnabled:
-          _readBool(payload, fields.maintenanceEnabled) ?? false,
-      maintenanceTitle: _readString(payload, fields.maintenanceTitle),
-      maintenanceMessage: _readString(payload, fields.maintenanceMessage),
-      patchNotes: _readString(payload, fields.patchNotes),
-      patchNotesFormat: _parsePatchNotesFormat(
-        _readString(payload, fields.patchNotesFormat),
-      ),
-      storeUrl: _readString(payload, fields.storeUrl),
+      minimumVersion: _str(p, FirebaseUpdateSchema.minimumVersion),
+      latestVersion: _str(p, FirebaseUpdateSchema.latestVersion),
+      updateTitle: _str(p, FirebaseUpdateSchema.updateTitle),
+      updateMessage: _str(p, FirebaseUpdateSchema.updateMessage),
+      forceUpdateTitle: _str(p, FirebaseUpdateSchema.forceUpdateTitle),
+      forceUpdateMessage: _str(p, FirebaseUpdateSchema.forceUpdateMessage),
+      optionalUpdateTitle: _str(p, FirebaseUpdateSchema.optionalUpdateTitle),
+      optionalUpdateMessage: _str(p, FirebaseUpdateSchema.optionalUpdateMessage),
+      updateType: _str(p, FirebaseUpdateSchema.updateType),
+      maintenanceEnabled: _bool(p, FirebaseUpdateSchema.maintenanceEnabled) ?? false,
+      maintenanceTitle: _str(p, FirebaseUpdateSchema.maintenanceTitle),
+      maintenanceMessage: _str(p, FirebaseUpdateSchema.maintenanceMessage),
+      patchNotes: _str(p, FirebaseUpdateSchema.patchNotes),
+      patchNotesFormat: _patchNotesFormat(_str(p, FirebaseUpdateSchema.patchNotesFormat)),
     );
   }
 
-  String? _readString(Map<String, dynamic> payload, String? key) {
-    if (key == null || key.isEmpty) {
-      return null;
-    }
-    final value = payload[key];
-    if (value == null) {
-      return null;
-    }
-    final normalized = value.toString().trim();
-    return normalized.isEmpty ? null : normalized;
+  String? _str(Map<String, dynamic> p, String key) {
+    final value = p[key];
+    if (value == null) return null;
+    final s = value.toString().trim();
+    return s.isEmpty ? null : s;
   }
 
-  bool? _readBool(Map<String, dynamic> payload, String? key) {
-    if (key == null || key.isEmpty) {
-      return null;
-    }
-    final value = payload[key];
-    if (value is bool) {
-      return value;
-    }
+  bool? _bool(Map<String, dynamic> p, String key) {
+    final value = p[key];
+    if (value is bool) return value;
+    if (value is num) return value != 0;
     if (value is String) {
       switch (value.trim().toLowerCase()) {
         case 'true':
@@ -66,19 +70,13 @@ class FirebaseUpdatePayloadParser {
           return false;
       }
     }
-    if (value is num) {
-      return value != 0;
-    }
     return null;
   }
 
-  FirebaseUpdatePatchNotesFormat _parsePatchNotesFormat(String? rawValue) {
-    switch (rawValue?.trim().toLowerCase()) {
-      case 'html':
-        return FirebaseUpdatePatchNotesFormat.html;
-      case 'text':
-      default:
-        return FirebaseUpdatePatchNotesFormat.plainText;
+  FirebaseUpdatePatchNotesFormat _patchNotesFormat(String? raw) {
+    if (raw?.trim().toLowerCase() == 'html') {
+      return FirebaseUpdatePatchNotesFormat.html;
     }
+    return FirebaseUpdatePatchNotesFormat.plainText;
   }
 }

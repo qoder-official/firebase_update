@@ -19,7 +19,6 @@ class FirebaseUpdatePayload {
     this.maintenanceMessage,
     this.patchNotes,
     this.patchNotesFormat = FirebaseUpdatePatchNotesFormat.plainText,
-    this.storeUrl,
   });
 
   final String? minimumVersion;
@@ -36,5 +35,4 @@ class FirebaseUpdatePayload {
   final String? maintenanceMessage;
   final String? patchNotes;
   final FirebaseUpdatePatchNotesFormat patchNotesFormat;
-  final String? storeUrl;
 }

@@ -24,10 +24,7 @@ import '../services/store_launcher.dart';
 /// ```dart
 /// await FirebaseUpdate.instance.initialize(
 ///   navigatorKey: rootNavigatorKey,
-///   config: const FirebaseUpdateConfig(
-///     remoteConfigKey: 'firebase_update_config', // optional — this is the default
-///     fields: FirebaseUpdateFieldMapping(minimumVersion: 'min_version'),
-///   ),
+///   config: const FirebaseUpdateConfig(),
 /// );
 /// ```
 class FirebaseUpdate {
@@ -146,14 +143,10 @@ class FirebaseUpdate {
       return state;
     }
 
-    final payload = _payloadParser.parse(
-      config: config,
-      rawPayload: rawPayload,
-    );
+    final payload = _payloadParser.parse(rawPayload);
     final state = _stateResolver.resolve(
       isInitialized: true,
-      currentVersion:
-          currentVersion ?? _currentVersion ?? config.currentVersion,
+      currentVersion: currentVersion ?? _currentVersion ?? config.currentVersion,
       payload: payload,
     );
     _emit(state);
@@ -201,7 +194,7 @@ class FirebaseUpdate {
     return _stateResolver.resolve(
       isInitialized: true,
       currentVersion: _currentVersion ?? config.currentVersion,
-      payload: _payloadParser.parse(config: config, rawPayload: rawPayload),
+      payload: _payloadParser.parse(rawPayload),
     );
   }
 

@@ -1,6 +1,6 @@
 name: firebase_update
 description: "Flutter force update, maintenance mode & patch notes via Firebase Remote Config. Real-time, server-controlled, with built-in UI and full customization."
-version: 0.1.0
+version: 1.0.0
 homepage: https://qoder.in/resources/firebase-update
 
 environment:

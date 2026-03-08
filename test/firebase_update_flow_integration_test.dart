@@ -20,14 +20,8 @@ void main() {
       await FirebaseUpdate.instance.initialize(
         navigatorKey: navigatorKey,
         config: const FirebaseUpdateConfig(
-          
           currentVersion: '2.4.0',
           useBottomSheetForOptionalUpdate: false,
-          fields: FirebaseUpdateFieldMapping(
-            minimumVersion: 'min_version',
-            latestVersion: 'latest_version',
-            updateType: 'update_type',
-          ),
         ),
       );
 
@@ -55,15 +49,7 @@ void main() {
     await FirebaseUpdate.instance.initialize(
       navigatorKey: navigatorKey,
       config: const FirebaseUpdateConfig(
-        
         currentVersion: '2.4.0',
-        fields: FirebaseUpdateFieldMapping(
-          minimumVersion: 'min_version',
-          latestVersion: 'latest_version',
-          updateType: 'update_type',
-          patchNotes: 'patch_notes',
-          storeUrl: 'store_url',
-        ),
       ),
     );
 
@@ -96,13 +82,7 @@ void main() {
       await FirebaseUpdate.instance.initialize(
         navigatorKey: navigatorKey,
         config: const FirebaseUpdateConfig(
-          
           currentVersion: '2.4.0',
-          fields: FirebaseUpdateFieldMapping(
-            minimumVersion: 'min_version',
-            latestVersion: 'latest_version',
-            maintenanceEnabled: 'maintenance_enabled',
-          ),
         ),
       );
 
@@ -130,13 +110,7 @@ void main() {
     await FirebaseUpdate.instance.initialize(
       navigatorKey: navigatorKey,
       config: const FirebaseUpdateConfig(
-        
         currentVersion: '2.4.0',
-        fields: FirebaseUpdateFieldMapping(
-          minimumVersion: 'min_version',
-          latestVersion: 'latest_version',
-          updateType: 'update_type',
-        ),
       ),
     );
 
@@ -171,13 +145,7 @@ void main() {
     await FirebaseUpdate.instance.initialize(
       navigatorKey: navigatorKey,
       config: const FirebaseUpdateConfig(
-        
         currentVersion: '2.4.0',
-        fields: FirebaseUpdateFieldMapping(
-          minimumVersion: 'min_version',
-          latestVersion: 'latest_version',
-          updateType: 'update_type',
-        ),
       ),
     );
 
@@ -213,13 +181,7 @@ void main() {
     await FirebaseUpdate.instance.initialize(
       navigatorKey: navigatorKey,
       config: FirebaseUpdateConfig(
-        
         currentVersion: '2.4.0',
-        fields: const FirebaseUpdateFieldMapping(
-          minimumVersion: 'min_version',
-          latestVersion: 'latest_version',
-          updateType: 'update_type',
-        ),
         useBottomSheetForOptionalUpdate: false,
         presentation: FirebaseUpdatePresentation(
           optionalUpdateDialogBuilder: (context, data) {
@@ -265,15 +227,7 @@ void main() {
     await FirebaseUpdate.instance.initialize(
       navigatorKey: navigatorKey,
       config: const FirebaseUpdateConfig(
-        
         currentVersion: '2.4.0',
-        fields: FirebaseUpdateFieldMapping(
-          minimumVersion: 'min_version',
-          latestVersion: 'latest_version',
-          maintenanceEnabled: 'maintenance_enabled',
-          maintenanceTitle: 'maintenance_title',
-          maintenanceMessage: 'maintenance_message',
-        ),
       ),
     );
 
@@ -308,14 +262,8 @@ void main() {
       await FirebaseUpdate.instance.initialize(
         navigatorKey: navigatorKey,
         config: const FirebaseUpdateConfig(
-          
           currentVersion: '2.4.0',
           useBottomSheetForOptionalUpdate: false,
-          fields: FirebaseUpdateFieldMapping(
-            minimumVersion: 'min_version',
-            latestVersion: 'latest_version',
-            updateType: 'update_type',
-          ),
         ),
       );
 
@@ -355,14 +303,8 @@ void main() {
       await FirebaseUpdate.instance.initialize(
         navigatorKey: navigatorKey,
         config: const FirebaseUpdateConfig(
-          
           currentVersion: '2.4.0',
           useBottomSheetForOptionalUpdate: false,
-          fields: FirebaseUpdateFieldMapping(
-            minimumVersion: 'min_version',
-            latestVersion: 'latest_version',
-            updateType: 'update_type',
-          ),
         ),
       );
 
@@ -398,15 +340,8 @@ void main() {
     await FirebaseUpdate.instance.initialize(
       navigatorKey: navigatorKey,
       config: const FirebaseUpdateConfig(
-        
         currentVersion: '2.4.0',
         useBottomSheetForOptionalUpdate: false,
-        fields: FirebaseUpdateFieldMapping(
-          minimumVersion: 'min_version',
-          latestVersion: 'latest_version',
-          updateType: 'update_type',
-          patchNotes: 'patch_notes',
-        ),
       ),
     );
 
@@ -442,16 +377,8 @@ void main() {
     await FirebaseUpdate.instance.initialize(
       navigatorKey: navigatorKey,
       config: const FirebaseUpdateConfig(
-        
         currentVersion: '2.4.0',
         useBottomSheetForOptionalUpdate: false,
-        fields: FirebaseUpdateFieldMapping(
-          minimumVersion: 'min_version',
-          latestVersion: 'latest_version',
-          updateType: 'update_type',
-          patchNotes: 'patch_notes',
-          patchNotesFormat: 'patch_notes_format',
-        ),
       ),
     );
 

@@ -2,13 +2,11 @@ import 'package:flutter/foundation.dart';
 
 import 'firebase_update_kind.dart';
 import 'firebase_update_patch_notes_format.dart';
-import 'firebase_update_payload.dart';
 
 /// The resolved update state emitted by `firebase_update`.
 ///
-/// Consumers can read [kind] to branch on the current state, and use the
-/// remaining fields to drive UI copy, version display, and patch-note
-/// rendering.
+/// Read [kind] to branch on the current state. The remaining fields carry
+/// display copy and version info resolved from Remote Config.
 @immutable
 class FirebaseUpdateState {
   const FirebaseUpdateState({
@@ -21,10 +19,8 @@ class FirebaseUpdateState {
     this.message,
     this.patchNotes,
     this.patchNotesFormat = FirebaseUpdatePatchNotesFormat.plainText,
-    this.storeUrl,
     this.maintenanceTitle,
     this.maintenanceMessage,
-    this.payload,
   });
 
   /// Convenience constructor for the uninitialized idle state.
@@ -38,10 +34,8 @@ class FirebaseUpdateState {
        latestVersion = null,
        patchNotes = null,
        patchNotesFormat = FirebaseUpdatePatchNotesFormat.plainText,
-       storeUrl = null,
        maintenanceTitle = null,
-       maintenanceMessage = null,
-       payload = null;
+       maintenanceMessage = null;
 
   /// The resolved [FirebaseUpdateKind] for this state.
   final FirebaseUpdateKind kind;
@@ -72,19 +66,11 @@ class FirebaseUpdateState {
   /// The format to use when rendering [patchNotes].
   final FirebaseUpdatePatchNotesFormat patchNotesFormat;
 
-  /// Store URL from Remote Config. Falls back to
-  /// [FirebaseUpdateFallbackStoreUrls] when `null`.
-  final String? storeUrl;
-
   /// Maintenance dialog title from Remote Config.
   final String? maintenanceTitle;
 
   /// Maintenance dialog body message from Remote Config.
   final String? maintenanceMessage;
-
-  /// The raw parsed payload that produced this state, exposed for advanced
-  /// consumers that need access to unmapped fields.
-  final FirebaseUpdatePayload? payload;
 
   /// Whether this state blocks user interaction (`forceUpdate` or
   /// `maintenance`).
@@ -102,10 +88,8 @@ class FirebaseUpdateState {
     String? message,
     String? patchNotes,
     FirebaseUpdatePatchNotesFormat? patchNotesFormat,
-    String? storeUrl,
     String? maintenanceTitle,
     String? maintenanceMessage,
-    FirebaseUpdatePayload? payload,
   }) {
     return FirebaseUpdateState(
       kind: kind ?? this.kind,
@@ -117,10 +101,8 @@ class FirebaseUpdateState {
       message: message ?? this.message,
       patchNotes: patchNotes ?? this.patchNotes,
       patchNotesFormat: patchNotesFormat ?? this.patchNotesFormat,
-      storeUrl: storeUrl ?? this.storeUrl,
       maintenanceTitle: maintenanceTitle ?? this.maintenanceTitle,
       maintenanceMessage: maintenanceMessage ?? this.maintenanceMessage,
-      payload: payload ?? this.payload,
     );
   }
 }

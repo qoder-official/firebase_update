@@ -15,11 +15,7 @@ void main() {
 
   test('initialize stores config and navigator key', () async {
     final navigatorKey = GlobalKey<NavigatorState>();
-    const config = FirebaseUpdateConfig(
-      
-      currentVersion: '2.4.0',
-      fields: FirebaseUpdateFieldMapping(minimumVersion: 'min_version'),
-    );
+    const config = FirebaseUpdateConfig(currentVersion: '2.4.0');
 
     await FirebaseUpdate.instance.initialize(
       navigatorKey: navigatorKey,
@@ -34,27 +30,15 @@ void main() {
     );
   });
 
-  test('applies optional update payload using mapped fields', () async {
+  test('applies optional update payload', () async {
     await FirebaseUpdate.instance.initialize(
       navigatorKey: GlobalKey<NavigatorState>(),
-      config: const FirebaseUpdateConfig(
-        
-        currentVersion: '2.4.0',
-        fields: FirebaseUpdateFieldMapping(
-          minimumVersion: 'min_v',
-          latestVersion: 'latest_v',
-          updateTitle: 'update_title',
-          updateMessage: 'update_message',
-          updateType: 'update_type',
-          patchNotes: 'patch_notes',
-          patchNotesFormat: 'patch_notes_format',
-        ),
-      ),
+      config: const FirebaseUpdateConfig(currentVersion: '2.4.0'),
     );
 
     final state = await FirebaseUpdate.instance.applyPayload({
-      'min_v': '2.0.0',
-      'latest_v': '2.6.0',
+      'min_version': '2.0.0',
+      'latest_version': '2.6.0',
       'update_title': 'Fresh update title',
       'update_message': 'Fresh update body',
       'update_type': 'optional',
@@ -72,16 +56,7 @@ void main() {
   test('maintenance takes precedence over update prompts', () async {
     await FirebaseUpdate.instance.initialize(
       navigatorKey: GlobalKey<NavigatorState>(),
-      config: const FirebaseUpdateConfig(
-        
-        currentVersion: '2.4.0',
-        fields: FirebaseUpdateFieldMapping(
-          minimumVersion: 'min_version',
-          latestVersion: 'latest_version',
-          maintenanceEnabled: 'maintenance_enabled',
-          maintenanceMessage: 'maintenance_message',
-        ),
-      ),
+      config: const FirebaseUpdateConfig(currentVersion: '2.4.0'),
     );
 
     final state = await FirebaseUpdate.instance.applyPayload({
@@ -99,14 +74,7 @@ void main() {
   test('minimum version breach triggers force update', () async {
     await FirebaseUpdate.instance.initialize(
       navigatorKey: GlobalKey<NavigatorState>(),
-      config: const FirebaseUpdateConfig(
-        
-        currentVersion: '2.4.0',
-        fields: FirebaseUpdateFieldMapping(
-          minimumVersion: 'min_version',
-          latestVersion: 'latest_version',
-        ),
-      ),
+      config: const FirebaseUpdateConfig(currentVersion: '2.4.0'),
     );
 
     final state = await FirebaseUpdate.instance.applyPayload({
@@ -119,41 +87,27 @@ void main() {
   });
 
   test('realtime listening is enabled by default', () {
-    const config = FirebaseUpdateConfig(
-      
-      fields: FirebaseUpdateFieldMapping(minimumVersion: 'min_version'),
-    );
-
+    const config = FirebaseUpdateConfig();
     expect(config.listenToRealtimeUpdates, isTrue);
   });
 
   test('realtime listening can be turned off', () {
-    const config = FirebaseUpdateConfig(
-      
-      listenToRealtimeUpdates: false,
-      fields: FirebaseUpdateFieldMapping(minimumVersion: 'min_version'),
-    );
-
+    const config = FirebaseUpdateConfig(listenToRealtimeUpdates: false);
     expect(config.listenToRealtimeUpdates, isFalse);
   });
 
-  test('platform fallback store urls can be configured', () {
+  test('store urls can be configured', () {
     const config = FirebaseUpdateConfig(
-      
-      fallbackStoreUrls: FirebaseUpdateFallbackStoreUrls(
+      storeUrls: FirebaseUpdateStoreUrls(
         android: 'https://play.google.com/store/apps/details?id=com.qoder.app',
         ios: 'https://apps.apple.com/app/id123456789',
       ),
-      fields: FirebaseUpdateFieldMapping(minimumVersion: 'min_version'),
     );
 
     expect(
-      config.fallbackStoreUrls.android,
+      config.storeUrls.android,
       'https://play.google.com/store/apps/details?id=com.qoder.app',
     );
-    expect(
-      config.fallbackStoreUrls.ios,
-      'https://apps.apple.com/app/id123456789',
-    );
+    expect(config.storeUrls.ios, 'https://apps.apple.com/app/id123456789');
   });
 }
