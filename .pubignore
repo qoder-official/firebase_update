@@ -1,0 +1,9 @@
+# Firebase RC tool — has its own pubspec and deps, not part of the package
+test/firebase_config/
+documentation/
+
+# Firebase project config files — contain project-specific API keys
+# Consumers generate their own via `flutterfire configure`
+example/lib/firebase_options.dart
+example/android/app/google-services.json
+example/ios/Runner/GoogleService-Info.plist

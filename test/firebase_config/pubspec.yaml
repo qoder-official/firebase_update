@@ -1,0 +1,10 @@
+name: firebase_update_rc_tool
+description: CLI tool to update Firebase Remote Config for firebase_update testing.
+publish_to: none
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  dart_jsonwebtoken: ^2.8.0
+  http: ^1.2.0
