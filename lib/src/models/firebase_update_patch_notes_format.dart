@@ -1,0 +1,1 @@
+enum FirebaseUpdatePatchNotesFormat { plainText, html }
