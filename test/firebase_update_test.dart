@@ -16,7 +16,7 @@ void main() {
   test('initialize stores config and navigator key', () async {
     final navigatorKey = GlobalKey<NavigatorState>();
     const config = FirebaseUpdateConfig(
-      remoteConfigKey: 'app_update',
+      
       currentVersion: '2.4.0',
       fields: FirebaseUpdateFieldMapping(minimumVersion: 'min_version'),
     );
@@ -38,7 +38,7 @@ void main() {
     await FirebaseUpdate.instance.initialize(
       navigatorKey: GlobalKey<NavigatorState>(),
       config: const FirebaseUpdateConfig(
-        remoteConfigKey: 'app_update',
+        
         currentVersion: '2.4.0',
         fields: FirebaseUpdateFieldMapping(
           minimumVersion: 'min_v',
@@ -73,7 +73,7 @@ void main() {
     await FirebaseUpdate.instance.initialize(
       navigatorKey: GlobalKey<NavigatorState>(),
       config: const FirebaseUpdateConfig(
-        remoteConfigKey: 'app_update',
+        
         currentVersion: '2.4.0',
         fields: FirebaseUpdateFieldMapping(
           minimumVersion: 'min_version',
@@ -100,7 +100,7 @@ void main() {
     await FirebaseUpdate.instance.initialize(
       navigatorKey: GlobalKey<NavigatorState>(),
       config: const FirebaseUpdateConfig(
-        remoteConfigKey: 'app_update',
+        
         currentVersion: '2.4.0',
         fields: FirebaseUpdateFieldMapping(
           minimumVersion: 'min_version',
@@ -120,7 +120,7 @@ void main() {
 
   test('realtime listening is enabled by default', () {
     const config = FirebaseUpdateConfig(
-      remoteConfigKey: 'app_update',
+      
       fields: FirebaseUpdateFieldMapping(minimumVersion: 'min_version'),
     );
 
@@ -129,7 +129,7 @@ void main() {
 
   test('realtime listening can be turned off', () {
     const config = FirebaseUpdateConfig(
-      remoteConfigKey: 'app_update',
+      
       listenToRealtimeUpdates: false,
       fields: FirebaseUpdateFieldMapping(minimumVersion: 'min_version'),
     );
@@ -139,7 +139,7 @@ void main() {
 
   test('platform fallback store urls can be configured', () {
     const config = FirebaseUpdateConfig(
-      remoteConfigKey: 'app_update',
+      
       fallbackStoreUrls: FirebaseUpdateFallbackStoreUrls(
         android: 'https://play.google.com/store/apps/details?id=com.qoder.app',
         ios: 'https://apps.apple.com/app/id123456789',

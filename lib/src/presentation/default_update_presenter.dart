@@ -20,6 +20,13 @@ class DefaultUpdatePresenter {
   FirebaseUpdateKind? _presentedKind;
   String? _skippedVersion;
 
+  /// Clears all presenter-held state. Called on [FirebaseUpdate.initialize]
+  /// and [FirebaseUpdate.debugReset] so each initialization cycle starts clean.
+  void reset() {
+    _presentedKind = null;
+    _skippedVersion = null;
+  }
+
   void presentIfNeeded({
     required FirebaseUpdateState state,
     required FirebaseUpdateConfig config,
@@ -161,6 +168,9 @@ class DefaultUpdatePresenter {
                   data: dialogData,
                   theme: config.presentation.theme,
                   iconBuilder: config.presentation.iconBuilder,
+                  alignment:
+                      config.presentation.contentAlignment ??
+                      FirebaseUpdateContentAlignment.center,
                 ),
           );
         },
@@ -205,6 +215,9 @@ class DefaultUpdatePresenter {
               data: data,
               theme: config.presentation.theme,
               iconBuilder: config.presentation.iconBuilder,
+              alignment:
+                  config.presentation.contentAlignment ??
+                  FirebaseUpdateContentAlignment.center,
             ),
       ),
     );
@@ -243,6 +256,9 @@ class DefaultUpdatePresenter {
                 data: data,
                 theme: config.presentation.theme,
                 iconBuilder: config.presentation.iconBuilder,
+                alignment:
+                    config.presentation.contentAlignment ??
+                    FirebaseUpdateContentAlignment.center,
               ),
         ),
       ),
@@ -298,6 +314,9 @@ class DefaultUpdatePresenter {
               data: sheetData,
               theme: config.presentation.theme,
               iconBuilder: config.presentation.iconBuilder,
+              alignment:
+                  config.presentation.contentAlignment ??
+                  FirebaseUpdateContentAlignment.start,
             );
         final blurSigma =
             config.presentation.theme.bottomSheetBackgroundBlurSigma ?? 0;
@@ -400,11 +419,13 @@ class _DefaultUpdateDialog extends StatelessWidget {
   const _DefaultUpdateDialog({
     required this.data,
     required this.theme,
+    required this.alignment,
     this.iconBuilder,
   });
 
   final FirebaseUpdatePresentationData data;
   final FirebaseUpdatePresentationTheme theme;
+  final FirebaseUpdateContentAlignment alignment;
   final FirebaseUpdateIconBuilder? iconBuilder;
 
   @override
@@ -432,7 +453,7 @@ class _DefaultUpdateDialog extends StatelessWidget {
           child: _DefaultUpdatePanel(
             data: data,
             theme: visualTheme,
-            centerHeader: true,
+            alignment: alignment,
             iconBuilder: iconBuilder,
           ),
         ),
@@ -445,11 +466,13 @@ class _DefaultUpdateSheet extends StatelessWidget {
   const _DefaultUpdateSheet({
     required this.data,
     required this.theme,
+    required this.alignment,
     this.iconBuilder,
   });
 
   final FirebaseUpdatePresentationData data;
   final FirebaseUpdatePresentationTheme theme;
+  final FirebaseUpdateContentAlignment alignment;
   final FirebaseUpdateIconBuilder? iconBuilder;
 
   @override
@@ -493,6 +516,7 @@ class _DefaultUpdateSheet extends StatelessWidget {
                   _DefaultUpdatePanel(
                     data: data,
                     theme: visualTheme,
+                    alignment: alignment,
                     iconBuilder: iconBuilder,
                   ),
                 ],
@@ -509,14 +533,47 @@ class _DefaultUpdatePanel extends StatelessWidget {
   const _DefaultUpdatePanel({
     required this.data,
     required this.theme,
-    this.centerHeader = false,
+    required this.alignment,
     this.iconBuilder,
   });
 
   final FirebaseUpdatePresentationData data;
   final _ResolvedPresentationTheme theme;
-  final bool centerHeader;
+  final FirebaseUpdateContentAlignment alignment;
   final FirebaseUpdateIconBuilder? iconBuilder;
+
+  Alignment get _iconAlignment {
+    switch (alignment) {
+      case FirebaseUpdateContentAlignment.start:
+        return Alignment.centerLeft;
+      case FirebaseUpdateContentAlignment.center:
+        return Alignment.center;
+      case FirebaseUpdateContentAlignment.end:
+        return Alignment.centerRight;
+    }
+  }
+
+  CrossAxisAlignment get _crossAxisAlignment {
+    switch (alignment) {
+      case FirebaseUpdateContentAlignment.start:
+        return CrossAxisAlignment.start;
+      case FirebaseUpdateContentAlignment.center:
+        return CrossAxisAlignment.center;
+      case FirebaseUpdateContentAlignment.end:
+        return CrossAxisAlignment.end;
+    }
+  }
+
+  TextAlign get _textAlign {
+    switch (alignment) {
+      case FirebaseUpdateContentAlignment.start:
+        return TextAlign.start;
+      case FirebaseUpdateContentAlignment.center:
+        return TextAlign.center;
+      case FirebaseUpdateContentAlignment.end:
+        return TextAlign.end;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -545,12 +602,10 @@ class _DefaultUpdatePanel extends StatelessWidget {
               padding: const EdgeInsets.all(20),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: _crossAxisAlignment,
                 children: [
                   Align(
-                    alignment: centerHeader
-                        ? Alignment.center
-                        : Alignment.centerLeft,
+                    alignment: _iconAlignment,
                     child:
                         resolvedIcon ??
                         Container(
@@ -573,9 +628,7 @@ class _DefaultUpdatePanel extends StatelessWidget {
                   const SizedBox(height: 18),
                   Text(
                     data.title,
-                    textAlign: centerHeader
-                        ? TextAlign.center
-                        : TextAlign.start,
+                    textAlign: _textAlign,
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       color: theme.contentColor,
                       fontWeight: FontWeight.w800,
@@ -585,9 +638,7 @@ class _DefaultUpdatePanel extends StatelessWidget {
                     const SizedBox(height: 10),
                     Text(
                       state.message!,
-                      textAlign: centerHeader
-                          ? TextAlign.center
-                          : TextAlign.start,
+                      textAlign: _textAlign,
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         color: theme.contentColor.withValues(alpha: 0.86),
                         height: 1.45,
@@ -600,11 +651,11 @@ class _DefaultUpdatePanel extends StatelessWidget {
                     SizedBox(
                       width: double.infinity,
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        crossAxisAlignment: _crossAxisAlignment,
                         children: [
                           Text(
                             'Release notes',
-                            textAlign: TextAlign.start,
+                            textAlign: _textAlign,
                             style: Theme.of(context).textTheme.titleSmall
                                 ?.copyWith(
                                   color: theme.contentColor,
@@ -615,7 +666,7 @@ class _DefaultUpdatePanel extends StatelessWidget {
                           _PatchNotesContent(
                             notes: state.patchNotes!,
                             format: state.patchNotesFormat,
-                            centerText: false,
+                            alignment: alignment,
                             readMoreColor: theme.accentColor,
                             style: Theme.of(context).textTheme.bodyMedium
                                 ?.copyWith(
@@ -683,14 +734,14 @@ class _PatchNotesContent extends StatefulWidget {
   const _PatchNotesContent({
     required this.notes,
     required this.format,
-    required this.centerText,
+    required this.alignment,
     this.style,
     this.readMoreColor,
   });
 
   final String notes;
   final FirebaseUpdatePatchNotesFormat format;
-  final bool centerText;
+  final FirebaseUpdateContentAlignment alignment;
   final TextStyle? style;
   final Color? readMoreColor;
 
@@ -720,6 +771,28 @@ class _PatchNotesContentState extends State<_PatchNotesContent> {
     return _buildPlainText(resolvedStyle, readMoreStyle);
   }
 
+  CrossAxisAlignment get _crossAxisAlignment {
+    switch (widget.alignment) {
+      case FirebaseUpdateContentAlignment.start:
+        return CrossAxisAlignment.start;
+      case FirebaseUpdateContentAlignment.center:
+        return CrossAxisAlignment.center;
+      case FirebaseUpdateContentAlignment.end:
+        return CrossAxisAlignment.end;
+    }
+  }
+
+  TextAlign get _textAlign {
+    switch (widget.alignment) {
+      case FirebaseUpdateContentAlignment.start:
+        return TextAlign.start;
+      case FirebaseUpdateContentAlignment.center:
+        return TextAlign.center;
+      case FirebaseUpdateContentAlignment.end:
+        return TextAlign.end;
+    }
+  }
+
   Widget _buildPlainText(TextStyle? style, TextStyle? readMoreStyle) {
     final lines = widget.notes
         .split('\n')
@@ -733,18 +806,12 @@ class _PatchNotesContentState extends State<_PatchNotesContent> {
         : lines;
 
     return Column(
-      crossAxisAlignment: widget.centerText
-          ? CrossAxisAlignment.center
-          : CrossAxisAlignment.start,
+      crossAxisAlignment: _crossAxisAlignment,
       children: [
         ...visibleLines.map(
           (line) => Padding(
             padding: const EdgeInsets.only(bottom: 6),
-            child: Text(
-              line,
-              textAlign: widget.centerText ? TextAlign.center : TextAlign.start,
-              style: style,
-            ),
+            child: Text(line, textAlign: _textAlign, style: style),
           ),
         ),
         if (needsToggle)
@@ -810,7 +877,7 @@ class _PatchNotesContentState extends State<_PatchNotesContent> {
     }
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: _crossAxisAlignment,
       children: [
         if (!_expanded)
           ConstrainedBox(

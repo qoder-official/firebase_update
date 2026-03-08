@@ -10,9 +10,12 @@ import 'firebase_update_field_mapping.dart';
 /// Remote Config object to read, how its fields are named, and how the default
 /// presentation should behave.
 ///
+/// By convention the package looks for a Remote Config parameter named
+/// `firebase_update_config` whose value is a JSON object. Override
+/// [remoteConfigKey] if your project uses a different key name.
+///
 /// ```dart
 /// const FirebaseUpdateConfig(
-///   remoteConfigKey: 'app_update',
 ///   fields: FirebaseUpdateFieldMapping(
 ///     minimumVersion: 'min_version',
 ///     latestVersion: 'latest_version',
@@ -23,7 +26,7 @@ import 'firebase_update_field_mapping.dart';
 @immutable
 class FirebaseUpdateConfig {
   const FirebaseUpdateConfig({
-    required this.remoteConfigKey,
+    this.remoteConfigKey = 'firebase_update_config',
     required this.fields,
     this.currentVersion,
     this.fallbackStoreUrls = const FirebaseUpdateFallbackStoreUrls(),
@@ -35,8 +38,10 @@ class FirebaseUpdateConfig {
     this.presentation = const FirebaseUpdatePresentation(),
   });
 
-  /// The key of the Remote Config JSON object that contains the update
-  /// configuration. Must match the key name set in the Firebase console.
+  /// The Remote Config parameter key whose value is a JSON object containing
+  /// the update configuration. Defaults to `'firebase_update_config'`.
+  ///
+  /// Override this if your project uses a different key name.
   final String remoteConfigKey;
 
   /// Mapping between the package's internal field names and the actual field

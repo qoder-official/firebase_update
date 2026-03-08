@@ -9,6 +9,44 @@ void main() {
     FirebaseUpdate.instance.debugReset();
   });
 
+  testWidgets(
+    'update UI appears when applyPayload is called before the widget tree is built',
+    (tester) async {
+      // This exercises the addPostFrameCallback fallback path that handles
+      // the window where the navigatorKey has no context yet because
+      // MaterialApp hasn't rendered its first frame.
+      final navigatorKey = GlobalKey<NavigatorState>();
+
+      await FirebaseUpdate.instance.initialize(
+        navigatorKey: navigatorKey,
+        config: const FirebaseUpdateConfig(
+          
+          currentVersion: '2.4.0',
+          useBottomSheetForOptionalUpdate: false,
+          fields: FirebaseUpdateFieldMapping(
+            minimumVersion: 'min_version',
+            latestVersion: 'latest_version',
+            updateType: 'update_type',
+          ),
+        ),
+      );
+
+      // Emit a force-update state BEFORE the widget tree exists.
+      // The presenter has no context yet and must defer via postFrameCallback.
+      await FirebaseUpdate.instance.applyPayload({
+        'min_version': '2.5.0',
+        'latest_version': '2.6.0',
+        'update_type': 'force',
+      });
+
+      // Build the widget tree now — the deferred callback should fire.
+      await tester.pumpWidget(_HarnessApp(navigatorKey: navigatorKey));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Update required'), findsOneWidget);
+    },
+  );
+
   testWidgets('optional update sheet appears and can be dismissed', (
     tester,
   ) async {
@@ -17,7 +55,7 @@ void main() {
     await FirebaseUpdate.instance.initialize(
       navigatorKey: navigatorKey,
       config: const FirebaseUpdateConfig(
-        remoteConfigKey: 'app_update',
+        
         currentVersion: '2.4.0',
         fields: FirebaseUpdateFieldMapping(
           minimumVersion: 'min_version',
@@ -58,7 +96,7 @@ void main() {
       await FirebaseUpdate.instance.initialize(
         navigatorKey: navigatorKey,
         config: const FirebaseUpdateConfig(
-          remoteConfigKey: 'app_update',
+          
           currentVersion: '2.4.0',
           fields: FirebaseUpdateFieldMapping(
             minimumVersion: 'min_version',
@@ -92,7 +130,7 @@ void main() {
     await FirebaseUpdate.instance.initialize(
       navigatorKey: navigatorKey,
       config: const FirebaseUpdateConfig(
-        remoteConfigKey: 'app_update',
+        
         currentVersion: '2.4.0',
         fields: FirebaseUpdateFieldMapping(
           minimumVersion: 'min_version',
@@ -133,7 +171,7 @@ void main() {
     await FirebaseUpdate.instance.initialize(
       navigatorKey: navigatorKey,
       config: const FirebaseUpdateConfig(
-        remoteConfigKey: 'app_update',
+        
         currentVersion: '2.4.0',
         fields: FirebaseUpdateFieldMapping(
           minimumVersion: 'min_version',
@@ -175,7 +213,7 @@ void main() {
     await FirebaseUpdate.instance.initialize(
       navigatorKey: navigatorKey,
       config: FirebaseUpdateConfig(
-        remoteConfigKey: 'app_update',
+        
         currentVersion: '2.4.0',
         fields: const FirebaseUpdateFieldMapping(
           minimumVersion: 'min_version',
@@ -227,7 +265,7 @@ void main() {
     await FirebaseUpdate.instance.initialize(
       navigatorKey: navigatorKey,
       config: const FirebaseUpdateConfig(
-        remoteConfigKey: 'app_update',
+        
         currentVersion: '2.4.0',
         fields: FirebaseUpdateFieldMapping(
           minimumVersion: 'min_version',
@@ -270,7 +308,7 @@ void main() {
       await FirebaseUpdate.instance.initialize(
         navigatorKey: navigatorKey,
         config: const FirebaseUpdateConfig(
-          remoteConfigKey: 'app_update',
+          
           currentVersion: '2.4.0',
           useBottomSheetForOptionalUpdate: false,
           fields: FirebaseUpdateFieldMapping(
@@ -317,7 +355,7 @@ void main() {
       await FirebaseUpdate.instance.initialize(
         navigatorKey: navigatorKey,
         config: const FirebaseUpdateConfig(
-          remoteConfigKey: 'app_update',
+          
           currentVersion: '2.4.0',
           useBottomSheetForOptionalUpdate: false,
           fields: FirebaseUpdateFieldMapping(
@@ -360,7 +398,7 @@ void main() {
     await FirebaseUpdate.instance.initialize(
       navigatorKey: navigatorKey,
       config: const FirebaseUpdateConfig(
-        remoteConfigKey: 'app_update',
+        
         currentVersion: '2.4.0',
         useBottomSheetForOptionalUpdate: false,
         fields: FirebaseUpdateFieldMapping(
@@ -404,7 +442,7 @@ void main() {
     await FirebaseUpdate.instance.initialize(
       navigatorKey: navigatorKey,
       config: const FirebaseUpdateConfig(
-        remoteConfigKey: 'app_update',
+        
         currentVersion: '2.4.0',
         useBottomSheetForOptionalUpdate: false,
         fields: FirebaseUpdateFieldMapping(

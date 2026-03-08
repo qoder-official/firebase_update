@@ -76,6 +76,7 @@ class FirebaseUpdatePayloadParser {
     switch (rawValue?.trim().toLowerCase()) {
       case 'html':
         return FirebaseUpdatePatchNotesFormat.html;
+      case 'text':
       default:
         return FirebaseUpdatePatchNotesFormat.plainText;
     }

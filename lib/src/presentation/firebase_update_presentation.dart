@@ -2,6 +2,22 @@ import 'package:flutter/material.dart';
 
 import '../models/firebase_update_state.dart';
 
+/// Content alignment for the icon, title, and body text inside the default
+/// update and maintenance panels.
+///
+/// Applied consistently across dialogs, bottom sheets, and the maintenance
+/// dialog.
+enum FirebaseUpdateContentAlignment {
+  /// Left-align all content (icon, title, message, patch notes).
+  start,
+
+  /// Center-align all content. This is the default for dialogs.
+  center,
+
+  /// Right-align all content.
+  end,
+}
+
 /// Signature for a builder that replaces the default package-managed modal
 /// with a custom widget.
 typedef FirebaseUpdateViewBuilder =
@@ -18,6 +34,7 @@ typedef FirebaseUpdateIconBuilder =
 class FirebaseUpdatePresentation {
   const FirebaseUpdatePresentation({
     this.useBottomSheetForOptionalUpdate = true,
+    this.contentAlignment,
     this.theme = const FirebaseUpdatePresentationTheme(),
     this.optionalUpdateDialogBuilder,
     this.optionalUpdateBottomSheetBuilder,
@@ -30,6 +47,14 @@ class FirebaseUpdatePresentation {
   /// than a dialog. Defaults to `true`. Can be overridden per-config by
   /// [FirebaseUpdateConfig.useBottomSheetForOptionalUpdate].
   final bool useBottomSheetForOptionalUpdate;
+
+  /// Alignment applied to the icon, title, body text, and patch notes inside
+  /// all default update and maintenance panels (dialogs, bottom sheets, and
+  /// the maintenance overlay).
+  ///
+  /// When `null`, dialogs default to [FirebaseUpdateContentAlignment.center]
+  /// and bottom sheets default to [FirebaseUpdateContentAlignment.start].
+  final FirebaseUpdateContentAlignment? contentAlignment;
 
   /// Theme tokens applied to the default presentation widgets.
   final FirebaseUpdatePresentationTheme theme;

@@ -73,7 +73,7 @@ Future<void> main() async {
   await FirebaseUpdate.instance.initialize(
     navigatorKey: navigatorKey,
     config: const FirebaseUpdateConfig(
-      remoteConfigKey: 'app_update',
+      // remoteConfigKey defaults to 'firebase_update_config'
       fields: FirebaseUpdateFieldMapping(
         minimumVersion: 'min_version',
         latestVersion: 'latest_version',
@@ -106,7 +106,7 @@ That's it. The package now listens for Remote Config changes and automatically p
 
 ## Remote Config Schema
 
-Set up a JSON parameter in Firebase Remote Config. The key name (`app_update` in the example above) is whatever you set as `remoteConfigKey`. The field names inside the JSON are whatever you map in `FirebaseUpdateFieldMapping`.
+Create a parameter named `firebase_update_config` in the Firebase console (or use a custom name via `remoteConfigKey`). Its value is a JSON object — the field names inside are whatever you map in `FirebaseUpdateFieldMapping`.
 
 ```json
 {
@@ -130,7 +130,7 @@ Set up a JSON parameter in Firebase Remote Config. The key name (`app_update` in
 | `maintenance_title` | string | Title shown on the maintenance screen. |
 | `maintenance_message` | string | Message shown on the maintenance screen. |
 | `patch_notes` | string | Release notes to show alongside the update prompt. |
-| `patch_notes_format` | string | `"plain"` (default) or `"html"`. |
+| `patch_notes_format` | string | `"text"` (default) or `"html"`. |
 | `store_url` | string | Direct store URL. Falls back to `FirebaseUpdateFallbackStoreUrls` if empty. |
 
 ---
@@ -155,7 +155,7 @@ Set up a JSON parameter in Firebase Remote Config. The key name (`app_update` in
 
 ```dart
 FirebaseUpdateConfig(
-  remoteConfigKey: 'app_update',     // Remote Config parameter key
+  // remoteConfigKey defaults to 'firebase_update_config'
   fields: FirebaseUpdateFieldMapping(...),
 
   // Optional
@@ -181,7 +181,6 @@ Disable the default presentation and supply your own builders per surface:
 
 ```dart
 FirebaseUpdateConfig(
-  remoteConfigKey: 'app_update',
   fields: FirebaseUpdateFieldMapping(minimumVersion: 'min_version'),
   presentation: FirebaseUpdatePresentation(
     forceUpdateDialogBuilder: (context, data) {
@@ -255,6 +254,38 @@ Stream<FirebaseUpdateState> stream = FirebaseUpdate.instance.stream;
 // Apply a raw payload manually (useful for testing or custom sources)
 await FirebaseUpdate.instance.applyPayload({'min_version': '2.0.0', ...});
 ```
+
+---
+
+## Testing
+
+### Unit + widget tests
+
+```bash
+flutter test
+```
+
+### Real Remote Config integration (requires service account)
+
+A Dart CLI tool in `test/firebase_config/` pushes predefined scenarios directly to Firebase Remote Config, leaving all other parameters untouched. The running app reacts in real time via `onConfigUpdated`.
+
+```bash
+cd test/firebase_config
+
+# One-time dependency install
+dart pub get
+
+# Push a scenario
+dart run update_remote_config.dart optional     # optional update bottom sheet / dialog
+dart run update_remote_config.dart force        # force update (blocking)
+dart run update_remote_config.dart maintenance  # maintenance mode (blocking)
+dart run update_remote_config.dart clear        # back to up-to-date
+
+# Custom Remote Config key
+dart run update_remote_config.dart optional --key my_update_key
+```
+
+Requires `test/firebase_config/service-account.json` with `firebaseremoteconfig` write permissions.
 
 ---
 

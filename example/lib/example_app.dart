@@ -33,7 +33,6 @@ Future<void> initializeExampleFirebaseUpdate({
   await FirebaseUpdate.instance.initialize(
     navigatorKey: rootNavigatorKey,
     config: FirebaseUpdateConfig(
-      remoteConfigKey: 'app_update',
       currentVersion: '2.4.0',
       useBottomSheetForOptionalUpdate: useBottomSheetForOptionalUpdate,
       fields: FirebaseUpdateFieldMapping(

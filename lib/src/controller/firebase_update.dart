@@ -25,7 +25,7 @@ import '../services/store_launcher.dart';
 /// await FirebaseUpdate.instance.initialize(
 ///   navigatorKey: rootNavigatorKey,
 ///   config: const FirebaseUpdateConfig(
-///     remoteConfigKey: 'app_update',
+///     remoteConfigKey: 'firebase_update_config', // optional — this is the default
 ///     fields: FirebaseUpdateFieldMapping(minimumVersion: 'min_version'),
 ///   ),
 /// );
@@ -86,6 +86,7 @@ class FirebaseUpdate {
     required FirebaseUpdateConfig config,
   }) async {
     await _payloadSubscription?.cancel();
+    _defaultUpdatePresenter.reset();
     _navigatorKey = navigatorKey;
     _config = config;
     _currentVersion = config.currentVersion ?? await _safeGetCurrentVersion();
@@ -171,6 +172,7 @@ class FirebaseUpdate {
     _config = null;
     _navigatorKey = null;
     _currentVersion = null;
+    _defaultUpdatePresenter.reset();
     _emit(const FirebaseUpdateState.idle());
   }
 
