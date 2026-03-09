@@ -20,10 +20,33 @@ class DefaultUpdatePresenter {
   FirebaseUpdateKind? _presentedKind;
   String? _skippedVersion;
 
+  // ---------------------------------------------------------------------------
+  // Concurrency guards
+  // ---------------------------------------------------------------------------
+
+  // Incremented each time presentation ownership changes (new state committed,
+  // upToDate dismisses, reset called).  Any callback or Future that was
+  // scheduled under an older generation silently aborts, preventing stale
+  // operations from acting on superseded state — the core fix for rapid-fire
+  // state bursts where multiple RC updates arrive before a frame is rendered.
+  int _generation = 0;
+
+  // True only while a dialog / sheet is actually on the navigator route stack.
+  // Starts as true immediately before showDialog / showGeneralDialog is awaited
+  // (the route is pushed synchronously by those calls before the first yield),
+  // and is set back to false once the overlay Future resolves.
+  //
+  // Used to decide whether a forced pop() is safe: a pop() on a navigator that
+  // holds only the app's main route would exit the app, so we only pop when
+  // _isPresenting confirms that an overlay route is actually in the stack.
+  bool _isPresenting = false;
+
   /// Clears all presenter-held state. Called on [FirebaseUpdate.initialize]
   /// and [FirebaseUpdate.debugReset] so each initialization cycle starts clean.
   void reset() {
+    _generation++;
     _presentedKind = null;
+    _isPresenting = false;
     _skippedVersion = null;
   }
 
@@ -39,8 +62,37 @@ class DefaultUpdatePresenter {
     if (state.kind == FirebaseUpdateKind.idle ||
         state.kind == FirebaseUpdateKind.upToDate) {
       if (state.kind == FirebaseUpdateKind.upToDate) {
-        _presentedKind = null;
+        _generation++;
         _skippedVersion = null;
+        // Dismiss any active overlay so the app returns to a usable state
+        // when the server signals that no update or maintenance is needed.
+        if (_isPresenting) {
+          // The overlay is actually on the navigator — pop it.
+          // pop() (not maybePop) is required because force-update and
+          // maintenance dialogs use PopScope(canPop: false) and are
+          // intentionally non-user-dismissable; only the presenter may
+          // programmatically close them.
+          _isPresenting = false;
+          _presentedKind = null;
+          final context =
+              navigatorKey.currentContext ?? navigatorKey.currentState?.context;
+          if (context != null) {
+            Navigator.of(context, rootNavigator: true).pop();
+          } else {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              final lateContext =
+                  navigatorKey.currentContext ??
+                  navigatorKey.currentState?.context;
+              if (lateContext != null) {
+                Navigator.of(lateContext, rootNavigator: true).pop();
+              }
+            });
+          }
+        } else {
+          // Overlay was scheduled (Future pending) but not yet on screen —
+          // the generation bump above is enough to cancel it.
+          _presentedKind = null;
+        }
       }
       return;
     }
@@ -67,6 +119,9 @@ class DefaultUpdatePresenter {
     final context =
         navigatorKey.currentContext ?? navigatorKey.currentState?.context;
     if (context == null) {
+      // Navigator not ready yet — defer to the next frame.
+      // The generation is NOT bumped here because no presentation has been
+      // committed; the callback will re-enter and commit on the next frame.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         presentIfNeeded(
           state: state,
@@ -77,10 +132,21 @@ class DefaultUpdatePresenter {
       return;
     }
 
-    if (_presentedKind != null && _presentedKind != state.kind) {
-      Navigator.of(context, rootNavigator: true).pop();
+    if (_presentedKind != null) {
+      if (_isPresenting) {
+        // An overlay is actually on the navigator — pop it so the new one
+        // can take its place.  pop() is intentional: see the upToDate branch
+        // above for the rationale.
+        Navigator.of(context, rootNavigator: true).pop();
+        _isPresenting = false;
+      }
+      // Cancel the old scheduled Future (if it hasn't run yet) or prevent
+      // the old overlay's completion logic from interfering.
+      _generation++;
       _presentedKind = null;
+      final gen = _generation;
       WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_generation != gen) return; // superseded while waiting for frame
         presentIfNeeded(
           state: state,
           config: config,
@@ -90,14 +156,24 @@ class DefaultUpdatePresenter {
       return;
     }
 
+    // Commit this state as the sole active presentation.
+    _generation++;
     _presentedKind = state.kind;
+    final gen = _generation;
     unawaited(
       Future<void>(() async {
-        if (!context.mounted) {
-          _presentedKind = null;
+        // Abort if the context is gone or a newer state has taken over since
+        // this Future was scheduled.
+        if (!context.mounted || _generation != gen) {
+          if (_generation == gen) _presentedKind = null;
           return;
         }
 
+        // Mark the overlay as live.  showDialog / showGeneralDialog push the
+        // route synchronously before their first internal yield, so by the time
+        // any concurrent presentIfNeeded call runs, _isPresenting is already
+        // true and the navigator has the overlay in its stack.
+        _isPresenting = true;
         switch (state.kind) {
           case FirebaseUpdateKind.optionalUpdate:
             await _presentOptionalUpdate(context, state, config);
@@ -112,6 +188,7 @@ class DefaultUpdatePresenter {
           case FirebaseUpdateKind.upToDate:
             break;
         }
+        _isPresenting = false;
       }),
     );
   }
