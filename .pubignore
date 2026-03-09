@@ -1,3 +1,7 @@
+# Build artifacts and caches — not part of the published package
+build/
+.dart_tool/
+
 # Firebase RC tool — has its own pubspec and deps, not part of the package
 test/firebase_config/
 documentation/
