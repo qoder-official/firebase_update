@@ -40,7 +40,6 @@ void main() {
       await FirebaseUpdate.instance.applyPayload({
         'min_version': '2.0.0',
         'latest_version': '2.6.0',
-        'update_type': 'optional',
         'optional_update_title': 'Update available',
         'optional_update_message': 'A new version is ready.',
         'patch_notes': 'Bug fixes and performance improvements.',
@@ -71,7 +70,6 @@ void main() {
       await FirebaseUpdate.instance.applyPayload({
         'min_version': '2.0.0',
         'latest_version': '2.6.0',
-        'update_type': 'optional',
         'optional_update_title': 'Update available',
         'optional_update_message': 'A new version is ready.',
         'patch_notes': 'Bug fixes and performance improvements.',
@@ -94,13 +92,36 @@ void main() {
     (tester) async {
       await initializeExampleFirebaseUpdate(
         initializeFirebase: false,
-        useBottomSheetForOptionalUpdate: false,
+        useBottomSheetForForceUpdate: false,
       );
       await tester.pumpWidget(const FirebaseUpdateExampleApp());
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.byKey(ExampleAppKeys.forceUpdateButton));
-      await tester.tap(find.byKey(ExampleAppKeys.forceUpdateButton));
+      await tester.ensureVisible(
+        find.byKey(ExampleAppKeys.forceUpdateDialogButton),
+      );
+      await tester.tap(find.byKey(ExampleAppKeys.forceUpdateDialogButton));
+      await _waitFor(tester, find.text('Update required'));
+
+      expect(find.text('Update required'), findsOneWidget);
+      expect(find.text('Later'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'force update sheet appears via simulator button and blocks dismissal',
+    (tester) async {
+      await initializeExampleFirebaseUpdate(
+        initializeFirebase: false,
+        useBottomSheetForForceUpdate: true,
+      );
+      await tester.pumpWidget(const FirebaseUpdateExampleApp());
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(
+        find.byKey(ExampleAppKeys.forceUpdateBottomSheetButton),
+      );
+      await tester.tap(find.byKey(ExampleAppKeys.forceUpdateBottomSheetButton));
       await _waitFor(tester, find.text('Update required'));
 
       expect(find.text('Update required'), findsOneWidget);
@@ -121,7 +142,6 @@ void main() {
       await FirebaseUpdate.instance.applyPayload({
         'min_version': '2.0.0',
         'latest_version': '2.6.0',
-        'update_type': 'optional',
       });
       await _waitFor(tester, find.text('Update available'));
       expect(find.text('Update available'), findsOneWidget);
@@ -129,7 +149,6 @@ void main() {
       await FirebaseUpdate.instance.applyPayload({
         'min_version': '2.5.0',
         'latest_version': '2.6.0',
-        'update_type': 'force',
       });
       await _waitFor(tester, find.text('Update required'));
 
@@ -151,7 +170,6 @@ void main() {
       await FirebaseUpdate.instance.applyPayload({
         'min_version': '2.0.0',
         'latest_version': '2.6.0',
-        'update_type': 'optional',
       });
       await _waitFor(tester, find.text('Update available'));
       expect(find.text('Update available'), findsOneWidget);
@@ -163,7 +181,6 @@ void main() {
       await FirebaseUpdate.instance.applyPayload({
         'min_version': '2.0.0',
         'latest_version': '2.6.0',
-        'update_type': 'optional',
       });
       await tester.pumpAndSettle();
 
@@ -184,7 +201,6 @@ void main() {
       await FirebaseUpdate.instance.applyPayload({
         'min_version': '2.0.0',
         'latest_version': '2.6.0',
-        'update_type': 'optional',
       });
       await _waitFor(tester, find.text('Update available'));
       await tester.tap(find.text('Later'));
@@ -194,7 +210,6 @@ void main() {
       await FirebaseUpdate.instance.applyPayload({
         'min_version': '2.0.0',
         'latest_version': '2.7.0',
-        'update_type': 'optional',
       });
       await _waitFor(tester, find.text('Update available'));
 
@@ -207,18 +222,19 @@ void main() {
     (tester) async {
       await initializeExampleFirebaseUpdate(
         initializeFirebase: false,
-        useBottomSheetForOptionalUpdate: false,
+        useBottomSheetForForceUpdate: false,
       );
       await tester.pumpWidget(const FirebaseUpdateExampleApp());
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.byKey(ExampleAppKeys.forceUpdateButton));
-      await tester.tap(find.byKey(ExampleAppKeys.forceUpdateButton));
+      await tester.ensureVisible(
+        find.byKey(ExampleAppKeys.forceUpdateDialogButton),
+      );
+      await tester.tap(find.byKey(ExampleAppKeys.forceUpdateDialogButton));
       await _waitFor(tester, find.text('Update required'));
       expect(find.text('Update required'), findsOneWidget);
 
       await FirebaseUpdate.instance.applyPayload({
-        'maintenance_enabled': true,
         'maintenance_title': 'Scheduled maintenance',
         'maintenance_message': 'Please try again shortly.',
       });

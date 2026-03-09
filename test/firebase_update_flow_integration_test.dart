@@ -176,24 +176,22 @@ void main() {
       config: FirebaseUpdateConfig(
         currentVersion: '2.4.0',
         useBottomSheetForOptionalUpdate: false,
-        presentation: FirebaseUpdatePresentation(
-          optionalUpdateDialogBuilder: (context, data) {
-            return AlertDialog(
-              title: const Text('Qoder custom update'),
-              content: Text(data.state.message ?? 'No message'),
-              actions: [
-                TextButton(
-                  onPressed: data.onSecondaryTap,
-                  child: const Text('Not now'),
-                ),
-                FilledButton(
-                  onPressed: data.onPrimaryTap,
-                  child: const Text('Install'),
-                ),
-              ],
-            );
-          },
-        ),
+        optionalUpdateWidget: (context, data) {
+          return AlertDialog(
+            title: const Text('Qoder custom update'),
+            content: Text(data.state.message ?? 'No message'),
+            actions: [
+              TextButton(
+                onPressed: data.onSecondaryTap,
+                child: const Text('Not now'),
+              ),
+              FilledButton(
+                onPressed: data.onPrimaryTap,
+                child: const Text('Install'),
+              ),
+            ],
+          );
+        },
       ),
     );
 

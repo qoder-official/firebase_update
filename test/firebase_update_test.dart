@@ -96,16 +96,16 @@ void main() {
 
   test('store urls can be configured', () {
     const config = FirebaseUpdateConfig(
-      storeUrls: FirebaseUpdateStoreUrls(
+      fallbackStoreUrls: FirebaseUpdateStoreUrls(
         android: 'https://play.google.com/store/apps/details?id=com.qoder.app',
         ios: 'https://apps.apple.com/app/id123456789',
       ),
     );
 
     expect(
-      config.storeUrls.android,
+      config.fallbackStoreUrls.android,
       'https://play.google.com/store/apps/details?id=com.qoder.app',
     );
-    expect(config.storeUrls.ios, 'https://apps.apple.com/app/id123456789');
+    expect(config.fallbackStoreUrls.ios, 'https://apps.apple.com/app/id123456789');
   });
 }

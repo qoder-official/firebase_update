@@ -5,17 +5,138 @@ import '../models/firebase_update_state.dart';
 /// Content alignment for the icon, title, and body text inside the default
 /// update and maintenance panels.
 ///
-/// Applied consistently across dialogs, bottom sheets, and the maintenance
-/// dialog.
+/// See also [FirebaseUpdatePresentation.patchNotesAlignment] to control the
+/// alignment of the release notes block independently.
 enum FirebaseUpdateContentAlignment {
-  /// Left-align all content (icon, title, message, patch notes).
+  /// Left-align content.
   start,
 
-  /// Center-align all content. This is the default for dialogs.
+  /// Center-align content. This is the default for dialogs.
   center,
 
-  /// Right-align all content.
+  /// Right-align content.
   end,
+}
+
+/// Fine-grained text style overrides for each text element in the default
+/// update and maintenance panels.
+///
+/// Each property is **merged** on top of the computed base style — only the
+/// properties you set are applied; everything else falls through to the app's
+/// theme default.
+///
+/// ```dart
+/// FirebaseUpdateTypography(
+///   titleStyle: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
+///   primaryButtonStyle: TextStyle(letterSpacing: 0.5),
+/// )
+/// ```
+@immutable
+class FirebaseUpdateTypography {
+  const FirebaseUpdateTypography({
+    this.titleStyle,
+    this.messageStyle,
+    this.releaseNotesHeadingStyle,
+    this.patchNotesStyle,
+    this.readMoreStyle,
+    this.primaryButtonStyle,
+    this.secondaryButtonStyle,
+  });
+
+  /// Merged on top of [TextTheme.headlineSmall] + `contentColor` for the
+  /// dialog / sheet title.
+  final TextStyle? titleStyle;
+
+  /// Merged on top of [TextTheme.bodyLarge] + `contentColor` for the body
+  /// message.
+  final TextStyle? messageStyle;
+
+  /// Merged on top of [TextTheme.titleSmall] bold + `contentColor` for the
+  /// 'Release notes' section heading.
+  final TextStyle? releaseNotesHeadingStyle;
+
+  /// Merged on top of [TextTheme.bodyMedium] + `contentColor` for the patch
+  /// notes body text.
+  final TextStyle? patchNotesStyle;
+
+  /// Overrides the style of the 'Read more' / 'Show less' toggle link.
+  /// The base style derives from [patchNotesStyle] with `accentColor` and
+  /// semibold weight applied first, then this override is merged on top.
+  final TextStyle? readMoreStyle;
+
+  /// Text style applied to the primary action button label (e.g. 'Update now').
+  final TextStyle? primaryButtonStyle;
+
+  /// Text style applied to the secondary action button label (e.g. 'Later').
+  final TextStyle? secondaryButtonStyle;
+}
+
+/// Customises every static string shown by the default update and maintenance
+/// UI.
+///
+/// All properties are optional — unset properties fall back to the built-in
+/// English defaults.
+///
+/// ```dart
+/// FirebaseUpdateLabels(
+///   updateNow: 'Install update',
+///   later: 'Not now',
+///   releaseNotesHeading: "What's new",
+/// )
+/// ```
+@immutable
+class FirebaseUpdateLabels {
+  const FirebaseUpdateLabels({
+    this.optionalUpdateTitle,
+    this.forceUpdateTitle,
+    this.maintenanceTitle,
+    this.updateNow,
+    this.later,
+    this.okay,
+    this.releaseNotesHeading,
+    this.readMore,
+    this.showLess,
+  });
+
+  /// Fallback title for optional update prompts when the Remote Config payload
+  /// does not provide an `optional_update_title`.
+  /// Defaults to `'Update available'`.
+  final String? optionalUpdateTitle;
+
+  /// Fallback title for force update prompts when the Remote Config payload
+  /// does not provide a `force_update_title`.
+  /// Defaults to `'Update required'`.
+  final String? forceUpdateTitle;
+
+  /// Fallback title for maintenance prompts when the Remote Config payload
+  /// does not provide a `maintenance_title`.
+  /// Defaults to `'Maintenance in progress'`.
+  final String? maintenanceTitle;
+
+  /// Label for the primary CTA on update prompts.
+  /// Defaults to `'Update now'`.
+  final String? updateNow;
+
+  /// Label for the dismiss button on optional update prompts.
+  /// Defaults to `'Later'`.
+  final String? later;
+
+  /// Label for the dismiss button on maintenance prompts (the modal stays
+  /// until the Remote Config value changes).
+  /// Defaults to `'Okay'`.
+  final String? okay;
+
+  /// Heading shown above the patch notes block.
+  /// Defaults to `'Release notes'`.
+  final String? releaseNotesHeading;
+
+  /// Label for the expand link when patch notes are truncated.
+  /// Defaults to `'Read more'`.
+  final String? readMore;
+
+  /// Label for the collapse link when patch notes are expanded.
+  /// Defaults to `'Show less'`.
+  final String? showLess;
 }
 
 /// Signature for a builder that replaces the default package-managed modal
@@ -35,11 +156,10 @@ class FirebaseUpdatePresentation {
   const FirebaseUpdatePresentation({
     this.useBottomSheetForOptionalUpdate = true,
     this.contentAlignment,
+    this.patchNotesAlignment,
+    this.typography = const FirebaseUpdateTypography(),
+    this.labels = const FirebaseUpdateLabels(),
     this.theme = const FirebaseUpdatePresentationTheme(),
-    this.optionalUpdateDialogBuilder,
-    this.optionalUpdateBottomSheetBuilder,
-    this.forceUpdateDialogBuilder,
-    this.maintenanceDialogBuilder,
     this.iconBuilder,
   });
 
@@ -48,29 +168,30 @@ class FirebaseUpdatePresentation {
   /// [FirebaseUpdateConfig.useBottomSheetForOptionalUpdate].
   final bool useBottomSheetForOptionalUpdate;
 
-  /// Alignment applied to the icon, title, body text, and patch notes inside
-  /// all default update and maintenance panels (dialogs, bottom sheets, and
-  /// the maintenance overlay).
+  /// Alignment applied to the icon, title, and body text inside all default
+  /// update and maintenance panels.
   ///
   /// When `null`, dialogs default to [FirebaseUpdateContentAlignment.center]
   /// and bottom sheets default to [FirebaseUpdateContentAlignment.start].
   final FirebaseUpdateContentAlignment? contentAlignment;
 
+  /// Alignment applied specifically to the release notes block.
+  ///
+  /// Defaults to [FirebaseUpdateContentAlignment.start] regardless of
+  /// [contentAlignment], because patch notes are typically multi-line text
+  /// that reads best left-aligned even when the rest of the panel is centered.
+  final FirebaseUpdateContentAlignment? patchNotesAlignment;
+
+  /// Fine-grained text style overrides for individual text elements (title,
+  /// message, patch notes, buttons, etc.).
+  final FirebaseUpdateTypography typography;
+
+  /// Overrides for every static string shown in the default update and
+  /// maintenance UI.
+  final FirebaseUpdateLabels labels;
+
   /// Theme tokens applied to the default presentation widgets.
   final FirebaseUpdatePresentationTheme theme;
-
-  /// Replaces the default optional-update dialog with a custom widget.
-  /// Receives [FirebaseUpdatePresentationData] including tap callbacks.
-  final FirebaseUpdateViewBuilder? optionalUpdateDialogBuilder;
-
-  /// Replaces the default optional-update bottom sheet with a custom widget.
-  final FirebaseUpdateViewBuilder? optionalUpdateBottomSheetBuilder;
-
-  /// Replaces the default force-update dialog with a custom widget.
-  final FirebaseUpdateViewBuilder? forceUpdateDialogBuilder;
-
-  /// Replaces the default maintenance dialog with a custom widget.
-  final FirebaseUpdateViewBuilder? maintenanceDialogBuilder;
 
   /// Provides a custom icon widget shown at the top of the default update
   /// panel.

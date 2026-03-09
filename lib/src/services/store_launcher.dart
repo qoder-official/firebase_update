@@ -1,3 +1,3 @@
 abstract class StoreLauncher {
-  Future<bool> launch({String? fallbackUrl});
+  Future<bool> launch({String? packageName, String? fallbackUrl});
 }

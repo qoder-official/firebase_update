@@ -144,16 +144,17 @@ FirebaseUpdateConfig(
   // remoteConfigKey defaults to 'firebase_update_config'
 
   currentVersion: '2.1.0',              // Override auto-detected version
+  packageName: 'com.example.app',        // Override auto-detected package name
   fetchTimeout: Duration(seconds: 60),
   minimumFetchInterval: Duration(hours: 12),
   listenToRealtimeUpdates: true,         // React to RC changes without restart
   enableDefaultPresentation: true,       // Set false to fully own the UI
   useBottomSheetForOptionalUpdate: true, // false = dialog instead
-  storeUrls: FirebaseUpdateStoreUrls(
+  fallbackStoreUrls: FirebaseUpdateStoreUrls(
     android: 'https://play.google.com/store/apps/details?id=com.example.app',
     ios: 'https://apps.apple.com/app/id000000000',
   ),
-  presentation: FirebaseUpdatePresentation(...), // Custom UI builders
+  presentation: FirebaseUpdatePresentation(...), // Theme / alignment / icon
 )
 ```
 
@@ -161,25 +162,25 @@ FirebaseUpdateConfig(
 
 ## Custom UI
 
-Supply your own builders per surface:
+Override any surface directly on `FirebaseUpdateConfig` — replace one, two, or all three independently:
 
 ```dart
+// Just override maintenance — everything else stays default
 FirebaseUpdateConfig(
-  presentation: FirebaseUpdatePresentation(
-    forceUpdateDialogBuilder: (context, data) {
-      return MyForceUpdateDialog(data: data);
-    },
-    optionalUpdateBottomSheetBuilder: (context, data) {
-      return MyUpdateSheet(data: data);
-    },
-    maintenanceDialogBuilder: (context, data) {
-      return MyMaintenanceScreen(data: data);
-    },
-  ),
+  maintenanceWidget: (context, data) => MyMaintenanceScreen(data: data),
+)
+
+// Mix and match
+FirebaseUpdateConfig(
+  forceUpdateWidget: (context, data) => MyForceUpdateDialog(data: data),
+  optionalUpdateWidget: (context, data) => MyUpdateSheet(data: data),
+  maintenanceWidget: (context, data) => MyMaintenanceScreen(data: data),
 )
 ```
 
-Each builder receives a `FirebaseUpdatePresentationData` with the resolved title, state, primary/secondary action labels, and tap callbacks — so your widget doesn't need to re-implement the action logic.
+Each builder receives `FirebaseUpdatePresentationData` with the resolved title, state, primary/secondary action labels, and tap callbacks wired to the correct package behavior — your widget doesn't need to re-implement any of that logic.
+
+For `optionalUpdateWidget`, the modal type (dialog vs bottom sheet) is still controlled by `useBottomSheetForOptionalUpdate` — your widget is the content regardless of which container is used.
 
 ### Theming the default UI
 

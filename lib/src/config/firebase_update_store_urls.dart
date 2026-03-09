@@ -1,11 +1,13 @@
 import 'package:flutter/foundation.dart';
 
-/// Per-platform store URLs used when the native store-listing launcher needs
-/// a direct URL.
+/// Per-platform fallback store URLs for `firebase_update`.
 ///
-/// Provide at least one URL for each platform the app targets. If a platform
-/// URL is `null` and native launch also fails, the update CTA shows a snackbar
-/// error instead.
+/// The package opens the app's store listing automatically using the running
+/// app's package name — no URL required. These URLs are only used if the
+/// native store launch fails (e.g. the device has no Play Store / App Store
+/// client, or the package name doesn't match the published listing).
+///
+/// Provide a URL for each platform you want a guaranteed fallback on:
 ///
 /// ```dart
 /// FirebaseUpdateStoreUrls(
@@ -24,21 +26,21 @@ class FirebaseUpdateStoreUrls {
     this.web,
   });
 
-  /// Google Play listing URL for Android.
+  /// Fallback Google Play listing URL for Android.
   final String? android;
 
-  /// App Store product URL for iOS.
+  /// Fallback App Store product URL for iOS.
   final String? ios;
 
-  /// Mac App Store product URL for macOS.
+  /// Fallback Mac App Store product URL for macOS.
   final String? macos;
 
-  /// Store URL for Windows.
+  /// Fallback store URL for Windows.
   final String? windows;
 
-  /// Store URL for Linux.
+  /// Fallback store URL for Linux.
   final String? linux;
 
-  /// Store URL for Web.
+  /// Fallback store URL for Web.
   final String? web;
 }
