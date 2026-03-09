@@ -26,7 +26,7 @@ class FirebaseUpdateStateResolver {
       );
     }
 
-    if (payload.maintenanceEnabled) {
+    if (payload.maintenanceMessage?.trim().isNotEmpty ?? false) {
       return FirebaseUpdateState(
         kind: FirebaseUpdateKind.maintenance,
         isInitialized: true,
@@ -63,26 +63,18 @@ class FirebaseUpdateStateResolver {
 
     final latest = _normalize(payload.latestVersion);
     if (latest != null && _versionComparator.compare(current, latest) < 0) {
-      final isForce = payload.updateType?.trim().toLowerCase() == 'force';
-      final kind = isForce ? FirebaseUpdateKind.forceUpdate : FirebaseUpdateKind.optionalUpdate;
       return FirebaseUpdateState(
-        kind: kind,
+        kind: FirebaseUpdateKind.optionalUpdate,
         isInitialized: true,
-        title: isForce
-            ? (payload.forceUpdateTitle ?? payload.updateTitle ?? 'Update required')
-            : (payload.optionalUpdateTitle ?? payload.updateTitle ?? 'Update available'),
+        title: payload.optionalUpdateTitle ?? payload.updateTitle ?? 'Update available',
         currentVersion: current,
         minimumVersion: minimum,
         latestVersion: latest,
         patchNotes: payload.patchNotes,
         patchNotesFormat: payload.patchNotesFormat,
-        message: isForce
-            ? (payload.forceUpdateMessage ??
-                payload.updateMessage ??
-                'A newer app version is required before this app can continue.')
-            : (payload.optionalUpdateMessage ??
-                payload.updateMessage ??
-                'A newer app version is available.'),
+        message: payload.optionalUpdateMessage ??
+            payload.updateMessage ??
+            'A newer app version is available.',
       );
     }
 

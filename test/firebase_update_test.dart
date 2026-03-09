@@ -41,7 +41,6 @@ void main() {
       'latest_version': '2.6.0',
       'update_title': 'Fresh update title',
       'update_message': 'Fresh update body',
-      'update_type': 'optional',
       'patch_notes': 'New release available',
       'patch_notes_format': 'text',
     });
@@ -62,7 +61,6 @@ void main() {
     final state = await FirebaseUpdate.instance.applyPayload({
       'min_version': '2.5.0',
       'latest_version': '2.6.0',
-      'maintenance_enabled': true,
       'maintenance_message': 'Service paused',
     });
 

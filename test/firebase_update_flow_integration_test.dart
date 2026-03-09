@@ -30,7 +30,6 @@ void main() {
       await FirebaseUpdate.instance.applyPayload({
         'min_version': '2.5.0',
         'latest_version': '2.6.0',
-        'update_type': 'force',
       });
 
       // Build the widget tree now — the deferred callback should fire.
@@ -59,9 +58,7 @@ void main() {
     await FirebaseUpdate.instance.applyPayload({
       'min_version': '2.0.0',
       'latest_version': '2.6.0',
-      'update_type': 'optional',
       'patch_notes': 'Optional update notes',
-      'store_url': 'https://qoder.in/app-update',
     });
     await tester.pumpAndSettle();
 
@@ -120,7 +117,6 @@ void main() {
     await FirebaseUpdate.instance.applyPayload({
       'min_version': '2.0.0',
       'latest_version': '2.6.0',
-      'update_type': 'optional',
     });
     await tester.pumpAndSettle();
 
@@ -129,7 +125,6 @@ void main() {
     await FirebaseUpdate.instance.applyPayload({
       'min_version': '2.5.0',
       'latest_version': '2.6.0',
-      'update_type': 'force',
     });
     await tester.pumpAndSettle();
 
@@ -155,7 +150,6 @@ void main() {
     await FirebaseUpdate.instance.applyPayload({
       'min_version': '2.0.0',
       'latest_version': '2.6.0',
-      'update_type': 'optional',
     });
     await tester.pumpAndSettle();
     expect(find.text('Update available'), findsOneWidget);
@@ -167,7 +161,6 @@ void main() {
     await FirebaseUpdate.instance.applyPayload({
       'min_version': '2.0.0',
       'latest_version': '2.7.0',
-      'update_type': 'optional',
     });
     await tester.pumpAndSettle();
     expect(find.text('Update available'), findsOneWidget);
@@ -210,7 +203,6 @@ void main() {
     await FirebaseUpdate.instance.applyPayload({
       'min_version': '2.0.0',
       'latest_version': '2.6.0',
-      'update_type': 'optional',
     });
     await tester.pumpAndSettle();
 
@@ -243,7 +235,6 @@ void main() {
     expect(find.text('Update required'), findsOneWidget);
 
     await FirebaseUpdate.instance.applyPayload({
-      'maintenance_enabled': true,
       'maintenance_title': 'Scheduled maintenance',
       'maintenance_message': 'Please try again shortly.',
     });
@@ -274,7 +265,6 @@ void main() {
       await FirebaseUpdate.instance.applyPayload({
         'min_version': '2.0.0',
         'latest_version': '2.6.0',
-        'update_type': 'optional',
       });
       await tester.pumpAndSettle();
       expect(find.text('Update available'), findsOneWidget);
@@ -288,7 +278,6 @@ void main() {
       await FirebaseUpdate.instance.applyPayload({
         'min_version': '2.0.0',
         'latest_version': '2.6.0',
-        'update_type': 'optional',
       });
       await tester.pumpAndSettle();
       expect(find.text('Update available'), findsNothing);
@@ -315,7 +304,6 @@ void main() {
       await FirebaseUpdate.instance.applyPayload({
         'min_version': '2.0.0',
         'latest_version': '2.6.0',
-        'update_type': 'optional',
       });
       await tester.pumpAndSettle();
       await tester.tap(find.text('Later'));
@@ -325,7 +313,6 @@ void main() {
       await FirebaseUpdate.instance.applyPayload({
         'min_version': '2.0.0',
         'latest_version': '2.7.0',
-        'update_type': 'optional',
       });
       await tester.pumpAndSettle();
       expect(find.text('Update available'), findsOneWidget);
@@ -352,7 +339,6 @@ void main() {
     await FirebaseUpdate.instance.applyPayload({
       'min_version': '2.0.0',
       'latest_version': '2.6.0',
-      'update_type': 'optional',
       'patch_notes': 'Line one\nLine two\nLine three\nLine four\nLine five\nLine six',
     });
     await tester.pumpAndSettle();
@@ -388,7 +374,6 @@ void main() {
     await FirebaseUpdate.instance.applyPayload({
       'min_version': '2.5.0',
       'latest_version': '2.6.0',
-      'update_type': 'force',
       'patch_notes':
           '<ul><li>Security fixes</li><li>Required backend compatibility changes</li></ul>',
       'patch_notes_format': 'html',

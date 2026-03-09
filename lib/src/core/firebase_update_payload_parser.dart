@@ -9,14 +9,12 @@ import '../models/firebase_update_payload.dart';
 abstract final class FirebaseUpdateSchema {
   static const minimumVersion = 'min_version';
   static const latestVersion = 'latest_version';
-  static const updateType = 'update_type';
   static const updateTitle = 'update_title';
   static const updateMessage = 'update_message';
   static const forceUpdateTitle = 'force_update_title';
   static const forceUpdateMessage = 'force_update_message';
   static const optionalUpdateTitle = 'optional_update_title';
   static const optionalUpdateMessage = 'optional_update_message';
-  static const maintenanceEnabled = 'maintenance_enabled';
   static const maintenanceTitle = 'maintenance_title';
   static const maintenanceMessage = 'maintenance_message';
   static const patchNotes = 'patch_notes';
@@ -38,8 +36,6 @@ class FirebaseUpdatePayloadParser {
       forceUpdateMessage: _str(p, FirebaseUpdateSchema.forceUpdateMessage),
       optionalUpdateTitle: _str(p, FirebaseUpdateSchema.optionalUpdateTitle),
       optionalUpdateMessage: _str(p, FirebaseUpdateSchema.optionalUpdateMessage),
-      updateType: _str(p, FirebaseUpdateSchema.updateType),
-      maintenanceEnabled: _bool(p, FirebaseUpdateSchema.maintenanceEnabled) ?? false,
       maintenanceTitle: _str(p, FirebaseUpdateSchema.maintenanceTitle),
       maintenanceMessage: _str(p, FirebaseUpdateSchema.maintenanceMessage),
       patchNotes: _str(p, FirebaseUpdateSchema.patchNotes),
@@ -52,25 +48,6 @@ class FirebaseUpdatePayloadParser {
     if (value == null) return null;
     final s = value.toString().trim();
     return s.isEmpty ? null : s;
-  }
-
-  bool? _bool(Map<String, dynamic> p, String key) {
-    final value = p[key];
-    if (value is bool) return value;
-    if (value is num) return value != 0;
-    if (value is String) {
-      switch (value.trim().toLowerCase()) {
-        case 'true':
-        case '1':
-        case 'yes':
-          return true;
-        case 'false':
-        case '0':
-        case 'no':
-          return false;
-      }
-    }
-    return null;
   }
 
   FirebaseUpdatePatchNotesFormat _patchNotesFormat(String? raw) {

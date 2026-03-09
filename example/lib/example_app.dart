@@ -188,7 +188,6 @@ class _SimulatorPanel extends StatelessWidget {
             await FirebaseUpdate.instance.applyPayload({
               'min_version': '2.0.0',
               'latest_version': '2.6.0',
-              'update_type': 'optional',
               'optional_update_title': 'Update available',
               'optional_update_message': 'A smoother release is ready.',
               'patch_notes': 'Version 2.6.0 — faster startup, cleaner onboarding, bug fixes.',
@@ -207,7 +206,6 @@ class _SimulatorPanel extends StatelessWidget {
             await FirebaseUpdate.instance.applyPayload({
               'min_version': '2.0.0',
               'latest_version': '2.6.0',
-              'update_type': 'optional',
               'optional_update_title': 'Update available',
               'optional_update_message': 'A smoother release is ready.',
               'patch_notes': 'Version 2.6.0 — faster startup, cleaner onboarding, bug fixes.',
@@ -221,7 +219,6 @@ class _SimulatorPanel extends StatelessWidget {
           onPressed: () => FirebaseUpdate.instance.applyPayload({
             'min_version': '2.5.0',
             'latest_version': '2.6.0',
-            'update_type': 'force',
             'force_update_message': 'This release contains required backend changes.',
             'patch_notes':
                 '<ul><li>Security fixes</li><li>Required backend compatibility changes</li></ul>',
@@ -232,7 +229,6 @@ class _SimulatorPanel extends StatelessWidget {
         OutlinedButton(
           key: ExampleAppKeys.maintenanceButton,
           onPressed: () => FirebaseUpdate.instance.applyPayload({
-            'maintenance_enabled': true,
             'maintenance_title': 'Scheduled maintenance',
             'maintenance_message': 'We\'ll be back shortly.',
           }),

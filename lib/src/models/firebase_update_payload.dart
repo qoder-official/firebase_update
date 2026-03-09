@@ -13,8 +13,6 @@ class FirebaseUpdatePayload {
     this.forceUpdateMessage,
     this.optionalUpdateTitle,
     this.optionalUpdateMessage,
-    this.updateType,
-    this.maintenanceEnabled = false,
     this.maintenanceTitle,
     this.maintenanceMessage,
     this.patchNotes,
@@ -29,8 +27,6 @@ class FirebaseUpdatePayload {
   final String? forceUpdateMessage;
   final String? optionalUpdateTitle;
   final String? optionalUpdateMessage;
-  final String? updateType;
-  final bool maintenanceEnabled;
   final String? maintenanceTitle;
   final String? maintenanceMessage;
   final String? patchNotes;

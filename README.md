@@ -21,7 +21,6 @@ Most Flutter update packages scrape the App Store listing or wrap a platform API
 | Maintenance / kill switch | ✅ | ✗ | ✗ | ✗ |
 | Real-time propagation (no restart) | ✅ | ✗ | ✗ | ✗ |
 | Patch notes alongside prompt | ✅ | ✗ | ✗ | ✗ |
-| Custom field mapping | ✅ | ✗ | ✗ | ✗ |
 | Fully custom UI builders | ✅ | partial | ✗ | ✗ |
 | iOS + Android | ✅ | ✅ | Android only | ✅ |
 | Works without store listing | ✅ | ✗ | ✗ | ✗ |
@@ -35,11 +34,10 @@ Most Flutter update packages scrape the App Store listing or wrap a platform API
 - **Force update** — blocks app usage when a breaking release is required
 - **Optional update** — encourages upgrade via a dismissible dialog or bottom sheet
 - **Maintenance mode** — instantly gates the app without shipping a build
-- **Patch notes** — plain text or HTML, shown inline or in the update UI
+- **Patch notes** — plain text or HTML, shown inline in the update UI
 - **Real-time updates** — reacts to Remote Config changes without an app restart
 - **Built-in UI** — default dialog and bottom sheet, no setup beyond a `navigatorKey`
 - **Custom UI** — replace any surface with your own widget builders
-- **Schema mapping** — use your own Remote Config key names
 - **`FirebaseUpdateBuilder`** — reactive widget for building your own in-screen update surfaces
 
 ---
@@ -48,7 +46,7 @@ Most Flutter update packages scrape the App Store listing or wrap a platform API
 
 ```yaml
 dependencies:
-  firebase_update: ^0.0.1
+  firebase_update: ^1.0.0
 ```
 
 This package requires Firebase to already be set up in your app. If you haven't done that yet, follow the [FlutterFire setup guide](https://firebase.flutter.dev/docs/overview).
@@ -72,19 +70,7 @@ Future<void> main() async {
 
   await FirebaseUpdate.instance.initialize(
     navigatorKey: navigatorKey,
-    config: const FirebaseUpdateConfig(
-      // remoteConfigKey defaults to 'firebase_update_config'
-      fields: FirebaseUpdateFieldMapping(
-        minimumVersion: 'min_version',
-        latestVersion: 'latest_version',
-        maintenanceEnabled: 'maintenance_enabled',
-        maintenanceMessage: 'maintenance_message',
-        updateType: 'update_type',
-        patchNotes: 'patch_notes',
-        patchNotesFormat: 'patch_notes_format',
-        storeUrl: 'store_url',
-      ),
-    ),
+    config: const FirebaseUpdateConfig(),
   );
 
   runApp(MyApp(navigatorKey: navigatorKey));
@@ -106,32 +92,32 @@ That's it. The package now listens for Remote Config changes and automatically p
 
 ## Remote Config Schema
 
-Create a parameter named `firebase_update_config` in the Firebase console (or use a custom name via `remoteConfigKey`). Its value is a JSON object — the field names inside are whatever you map in `FirebaseUpdateFieldMapping`.
+Create a parameter named `firebase_update_config` in the Firebase console (or use a custom name via `remoteConfigKey`). Its value must be a **JSON string**:
 
 ```json
 {
   "min_version": "2.0.0",
   "latest_version": "2.3.1",
-  "update_type": "optional",
-  "maintenance_enabled": false,
-  "maintenance_message": "We'll be back shortly.",
+  "maintenance_message": "",
   "patch_notes": "• Bug fixes\n• Performance improvements",
-  "patch_notes_format": "plain",
-  "store_url": ""
+  "patch_notes_format": "text"
 }
 ```
 
 | Field | Type | Description |
 |---|---|---|
-| `min_version` | string | Minimum version required. Below this → force update. |
+| `min_version` | string | Minimum supported version. Below this → force update (blocking). |
 | `latest_version` | string | Latest available version. Below this → optional update. |
-| `update_type` | string | `"optional"` or `"force"` — overrides version logic if set. |
-| `maintenance_enabled` | bool | When `true`, the app enters maintenance mode. |
 | `maintenance_title` | string | Title shown on the maintenance screen. |
-| `maintenance_message` | string | Message shown on the maintenance screen. |
-| `patch_notes` | string | Release notes to show alongside the update prompt. |
+| `maintenance_message` | string | Non-empty string activates maintenance mode (blocking). |
+| `force_update_title` | string | Override title for the force update screen. |
+| `force_update_message` | string | Override body for the force update screen. |
+| `optional_update_title` | string | Override title for the optional update prompt. |
+| `optional_update_message` | string | Override body for the optional update prompt. |
+| `patch_notes` | string | Release notes shown alongside the update prompt. |
 | `patch_notes_format` | string | `"text"` (default) or `"html"`. |
-| `store_url` | string | Direct store URL. Falls back to `FirebaseUpdateFallbackStoreUrls` if empty. |
+
+**Priority:** maintenance (if `maintenance_message` is non-empty) → force update (if `current < min_version`) → optional update (if `current < latest_version`). Only one surface is shown at a time; the package dismisses the previous modal before showing a new one.
 
 ---
 
@@ -156,16 +142,14 @@ Create a parameter named `firebase_update_config` in the Firebase console (or us
 ```dart
 FirebaseUpdateConfig(
   // remoteConfigKey defaults to 'firebase_update_config'
-  fields: FirebaseUpdateFieldMapping(...),
 
-  // Optional
-  currentVersion: '2.1.0',           // Override auto-detected version
+  currentVersion: '2.1.0',              // Override auto-detected version
   fetchTimeout: Duration(seconds: 60),
   minimumFetchInterval: Duration(hours: 12),
-  listenToRealtimeUpdates: true,      // React to RC changes without restart
-  enableDefaultPresentation: true,    // Set false to fully own the UI
+  listenToRealtimeUpdates: true,         // React to RC changes without restart
+  enableDefaultPresentation: true,       // Set false to fully own the UI
   useBottomSheetForOptionalUpdate: true, // false = dialog instead
-  fallbackStoreUrls: FirebaseUpdateFallbackStoreUrls(
+  storeUrls: FirebaseUpdateStoreUrls(
     android: 'https://play.google.com/store/apps/details?id=com.example.app',
     ios: 'https://apps.apple.com/app/id000000000',
   ),
@@ -177,11 +161,10 @@ FirebaseUpdateConfig(
 
 ## Custom UI
 
-Disable the default presentation and supply your own builders per surface:
+Supply your own builders per surface:
 
 ```dart
 FirebaseUpdateConfig(
-  fields: FirebaseUpdateFieldMapping(minimumVersion: 'min_version'),
   presentation: FirebaseUpdatePresentation(
     forceUpdateDialogBuilder: (context, data) {
       return MyForceUpdateDialog(data: data);
