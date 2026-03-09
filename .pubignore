@@ -2,9 +2,13 @@
 build/
 .dart_tool/
 
-# Firebase RC tool — has its own pubspec and deps, not part of the package
+# Firebase RC tool — standalone dev tool with its own pubspec, not part of the package
+tool/
 test/firebase_config/
 documentation/
+
+# Live RC integration test — requires project-specific credentials, not runnable by consumers
+example/integration_test/live_rc_test.dart
 
 # Firebase project config files — contain project-specific API keys
 # Consumers generate their own via `flutterfire configure`
