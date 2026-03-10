@@ -9,13 +9,20 @@ void main() {
     FirebaseUpdate.instance.debugReset();
   });
 
+  // ---------------------------------------------------------------------------
+  // Core state machine
+  // ---------------------------------------------------------------------------
+
   test('starts in idle state', () {
     expect(FirebaseUpdate.instance.currentState.kind, FirebaseUpdateKind.idle);
   });
 
   test('initialize stores config and navigator key', () async {
     final navigatorKey = GlobalKey<NavigatorState>();
-    const config = FirebaseUpdateConfig(currentVersion: '2.4.0');
+    final config = FirebaseUpdateConfig(
+      currentVersion: '2.4.0',
+      preferencesStore: _InMemoryStore(),
+    );
 
     await FirebaseUpdate.instance.initialize(
       navigatorKey: navigatorKey,
@@ -33,7 +40,10 @@ void main() {
   test('applies optional update payload', () async {
     await FirebaseUpdate.instance.initialize(
       navigatorKey: GlobalKey<NavigatorState>(),
-      config: const FirebaseUpdateConfig(currentVersion: '2.4.0'),
+      config: FirebaseUpdateConfig(
+        currentVersion: '2.4.0',
+        preferencesStore: _InMemoryStore(),
+      ),
     );
 
     final state = await FirebaseUpdate.instance.applyPayload({
@@ -55,7 +65,10 @@ void main() {
   test('maintenance takes precedence over update prompts', () async {
     await FirebaseUpdate.instance.initialize(
       navigatorKey: GlobalKey<NavigatorState>(),
-      config: const FirebaseUpdateConfig(currentVersion: '2.4.0'),
+      config: FirebaseUpdateConfig(
+        currentVersion: '2.4.0',
+        preferencesStore: _InMemoryStore(),
+      ),
     );
 
     final state = await FirebaseUpdate.instance.applyPayload({
@@ -72,7 +85,10 @@ void main() {
   test('minimum version breach triggers force update', () async {
     await FirebaseUpdate.instance.initialize(
       navigatorKey: GlobalKey<NavigatorState>(),
-      config: const FirebaseUpdateConfig(currentVersion: '2.4.0'),
+      config: FirebaseUpdateConfig(
+        currentVersion: '2.4.0',
+        preferencesStore: _InMemoryStore(),
+      ),
     );
 
     final state = await FirebaseUpdate.instance.applyPayload({
@@ -108,4 +124,107 @@ void main() {
     );
     expect(config.fallbackStoreUrls.ios, 'https://apps.apple.com/app/id123456789');
   });
+
+  // ---------------------------------------------------------------------------
+  // v1.0.1 config defaults
+  // ---------------------------------------------------------------------------
+
+  test('snoozeDuration defaults to null (session-only dismiss)', () {
+    const config = FirebaseUpdateConfig();
+    expect(config.snoozeDuration, isNull);
+  });
+
+  test('showSkipVersion defaults to false', () {
+    const config = FirebaseUpdateConfig();
+    expect(config.showSkipVersion, isFalse);
+  });
+
+  test('patchSource defaults to null', () {
+    const config = FirebaseUpdateConfig();
+    expect(config.patchSource, isNull);
+  });
+
+  test('FirebaseUpdateKind includes shorebirdPatch', () {
+    expect(
+      FirebaseUpdateKind.values,
+      contains(FirebaseUpdateKind.shorebirdPatch),
+    );
+  });
+
+  test('FirebaseUpdateLabels exposes skip and patch labels', () {
+    const labels = FirebaseUpdateLabels(
+      skipVersion: 'Ignore this release',
+      patchAvailableTitle: 'Update ready',
+      patchAvailableMessage: 'Restart to apply.',
+      applyPatch: 'Apply now',
+    );
+
+    expect(labels.skipVersion, 'Ignore this release');
+    expect(labels.patchAvailableTitle, 'Update ready');
+    expect(labels.patchAvailableMessage, 'Restart to apply.');
+    expect(labels.applyPatch, 'Apply now');
+  });
+
+  test('FirebaseUpdatePresentationData supports tertiaryLabel and onTertiaryTap', () {
+    var tapped = false;
+    final data = FirebaseUpdatePresentationData(
+      title: 'Test',
+      state: const FirebaseUpdateState.idle(),
+      isBlocking: false,
+      primaryLabel: 'Primary',
+      onPrimaryTap: () {},
+      tertiaryLabel: 'Skip this version',
+      onTertiaryTap: () => tapped = true,
+    );
+
+    expect(data.tertiaryLabel, 'Skip this version');
+    data.onTertiaryTap?.call();
+    expect(tapped, isTrue);
+  });
+
+  test('FirebaseUpdatePresentationData.copyWith preserves tertiaryLabel', () {
+    var tapped = false;
+    final original = FirebaseUpdatePresentationData(
+      title: 'Test',
+      state: const FirebaseUpdateState.idle(),
+      isBlocking: false,
+      primaryLabel: 'Primary',
+      onPrimaryTap: () {},
+      tertiaryLabel: 'Skip',
+      onTertiaryTap: () => tapped = true,
+    );
+
+    final copied = original.copyWith(title: 'Updated title');
+    expect(copied.tertiaryLabel, 'Skip');
+    copied.onTertiaryTap?.call();
+    expect(tapped, isTrue);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+class _InMemoryStore implements FirebaseUpdatePreferencesStore {
+  String? _skippedVersion;
+  DateTime? _snoozedUntil;
+
+  @override
+  Future<String?> getSkippedVersion() async => _skippedVersion;
+
+  @override
+  Future<void> setSkippedVersion(String version) async =>
+      _skippedVersion = version;
+
+  @override
+  Future<void> clearSkippedVersion() async => _skippedVersion = null;
+
+  @override
+  Future<DateTime?> getSnoozedUntil() async => _snoozedUntil;
+
+  @override
+  Future<void> setSnoozedUntil(DateTime until) async => _snoozedUntil = until;
+
+  @override
+  Future<void> clearSnoozedUntil() async => _snoozedUntil = null;
 }

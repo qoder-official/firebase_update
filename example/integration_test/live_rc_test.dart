@@ -54,8 +54,13 @@ const _projectId = 'fir-update-example-eff16';
 const _serviceEmail =
     'firebase-adminsdk-fbsvc@fir-update-example-eff16.iam.gserviceaccount.com';
 
-// Injected at build time. Never commit a real key here.
-const _privateKey = String.fromEnvironment('SA_PRIVATE_KEY');
+// Injected at build time via --dart-define=SA_PRIVATE_KEY=<key-with-literal-\n>.
+// The script passes newlines as literal \n to keep the define single-line
+// (multi-line dart-defines break Flutter's Android build chain). We decode
+// them here so RSAPrivateKey receives a properly formatted PEM string.
+// ignore: do_not_use_environment
+const _privateKeyRaw = String.fromEnvironment('SA_PRIVATE_KEY');
+final _privateKey = _privateKeyRaw.replaceAll('\\n', '\n');
 
 const _rcScope = 'https://www.googleapis.com/auth/firebase.remoteconfig';
 const _rcKey = 'firebase_update_config';

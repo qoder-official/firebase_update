@@ -5,11 +5,13 @@ import 'package:flutter/widgets.dart';
 import '../config/firebase_update_config.dart';
 import '../core/firebase_update_payload_parser.dart';
 import '../core/firebase_update_state_resolver.dart';
+import '../models/firebase_update_kind.dart';
 import '../models/firebase_update_state.dart';
 import '../presentation/default_update_presenter.dart';
 import '../services/app_review_store_launcher.dart';
 import '../services/app_version_provider.dart';
 import '../services/firebase_remote_config_payload_source.dart';
+import '../services/firebase_update_preferences_store.dart';
 import '../services/package_info_app_version_provider.dart';
 import '../services/remote_config_payload_source.dart';
 import '../services/store_launcher.dart';
@@ -58,6 +60,7 @@ class FirebaseUpdate {
   FirebaseUpdateConfig? _config;
   StreamSubscription<Map<String, dynamic>?>? _payloadSubscription;
   String? _currentVersion;
+  FirebaseUpdatePreferencesStore? _store;
 
   /// A broadcast stream of [FirebaseUpdateState] that emits on every state
   /// change, including real-time Remote Config updates.
@@ -87,6 +90,18 @@ class FirebaseUpdate {
     _navigatorKey = navigatorKey;
     _config = config;
     _currentVersion = config.currentVersion ?? await _safeGetCurrentVersion();
+
+    // Load persisted skip/snooze state before first presentation.
+    final store =
+        config.preferencesStore ?? SharedPreferencesFirebaseUpdateStore();
+    _store = store;
+    final skippedVersion = await store.getSkippedVersion();
+    final snoozedUntil = await store.getSnoozedUntil();
+    _defaultUpdatePresenter.loadPersistedState(
+      store: store,
+      skippedVersion: skippedVersion,
+      snoozedUntil: snoozedUntil,
+    );
 
     if (!_remoteConfigPayloadSource.isAvailable) {
       _emit(
@@ -153,6 +168,80 @@ class FirebaseUpdate {
     return state;
   }
 
+  // ---------------------------------------------------------------------------
+  // Public skip / snooze API
+  //
+  // These methods are primarily useful when you supply a custom
+  // [FirebaseUpdateConfig.optionalUpdateWidget] and need to drive skip/snooze
+  // state from your own dialog without relying on the built-in buttons.
+  // ---------------------------------------------------------------------------
+
+  /// Snoozes the optional-update prompt for [duration].
+  ///
+  /// If [duration] is omitted, [FirebaseUpdateConfig.snoozeDuration] is used.
+  /// If neither is set, the call is a no-op (use
+  /// [dismissOptionalUpdateForSession] for a session-only dismiss instead).
+  ///
+  /// The snooze is persisted via [FirebaseUpdateConfig.preferencesStore] so
+  /// it survives app restarts.
+  Future<void> snoozeOptionalUpdate([Duration? duration]) async {
+    final effectiveDuration = duration ?? _config?.snoozeDuration;
+    if (effectiveDuration == null) return;
+    // Delegate until-computation to the presenter so the injected test clock
+    // is used consistently (avoids mixing real DateTime.now with fake clock).
+    final until = _defaultUpdatePresenter.applySnooze(
+      effectiveDuration,
+      forVersion: _currentState.latestVersion,
+    );
+    await _store?.setSnoozedUntil(until);
+  }
+
+  /// Dismisses the optional-update prompt for the current app session only.
+  ///
+  /// The prompt will reappear on the next app launch. This mirrors what
+  /// happens when the user taps "Later" and no [FirebaseUpdateConfig.snoozeDuration]
+  /// is configured.
+  void dismissOptionalUpdateForSession() {
+    final version = _currentState.latestVersion;
+    if (version != null) {
+      _defaultUpdatePresenter.applySessionDismiss(version);
+    }
+  }
+
+  /// Permanently skips the optional-update prompt for [version].
+  ///
+  /// The prompt for this exact version will not appear again (even after an
+  /// app restart) until Remote Config returns a higher [latestVersion].
+  ///
+  /// Persisted via [FirebaseUpdateConfig.preferencesStore].
+  Future<void> skipVersion(String version) async {
+    _defaultUpdatePresenter.applySkippedVersion(version);
+    await _store?.setSkippedVersion(version);
+  }
+
+  /// Clears any active time-based snooze so the optional-update prompt can
+  /// reappear on the next state emission.
+  Future<void> clearSnooze() async {
+    _defaultUpdatePresenter.clearSnoozedUntil();
+    await _store?.clearSnoozedUntil();
+  }
+
+  /// Clears any persistently skipped version so the optional-update prompt can
+  /// reappear on the next state emission.
+  Future<void> clearSkippedVersion() async {
+    _defaultUpdatePresenter.clearSkippedVersion();
+    await _store?.clearSkippedVersion();
+  }
+
+  /// Overrides the clock used for snooze calculations.
+  ///
+  /// Pass a function that returns a controlled [DateTime] to make snooze
+  /// behaviour deterministic in widget tests without needing real delays.
+  @visibleForTesting
+  void debugSetClock(DateTime Function() clock) {
+    _defaultUpdatePresenter.internalSetClock(clock);
+  }
+
   @visibleForTesting
   void debugEmit(FirebaseUpdateState state) {
     _emit(state);
@@ -165,6 +254,7 @@ class FirebaseUpdate {
     _config = null;
     _navigatorKey = null;
     _currentVersion = null;
+    _store = null;
     _defaultUpdatePresenter.reset();
     _emit(const FirebaseUpdateState.idle());
   }
@@ -179,6 +269,34 @@ class FirebaseUpdate {
         config: config,
         navigatorKey: _navigatorKey,
       );
+      // Check for Shorebird patches whenever the app is up to date.
+      if (state.kind == FirebaseUpdateKind.upToDate &&
+          config.patchSource != null) {
+        unawaited(_checkForPatch(config));
+      }
+    }
+  }
+
+  Future<void> _checkForPatch(FirebaseUpdateConfig config) async {
+    try {
+      final isAvailable = await config.patchSource!.isPatchAvailable();
+      if (!isAvailable) return;
+      // Abort if state changed while the async check was in flight.
+      if (_currentState.kind != FirebaseUpdateKind.upToDate) return;
+
+      final labels = config.presentation.labels;
+      _emit(
+        FirebaseUpdateState(
+          kind: FirebaseUpdateKind.shorebirdPatch,
+          isInitialized: true,
+          title: labels.patchAvailableTitle ?? 'Patch ready',
+          message: labels.patchAvailableMessage ??
+              'A new patch is available. Apply it and restart to update.',
+          currentVersion: _currentVersion,
+        ),
+      );
+    } catch (_) {
+      // Silently ignore patch check failures.
     }
   }
 

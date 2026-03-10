@@ -17,4 +17,8 @@ enum FirebaseUpdateKind {
   /// The app is temporarily unavailable due to a maintenance event. This
   /// state is independent of the app version.
   maintenance,
+
+  /// A Shorebird code-push patch is available and has been downloaded.
+  /// The user should restart the app to apply it.
+  shorebirdPatch,
 }

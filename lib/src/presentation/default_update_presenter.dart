@@ -9,6 +9,8 @@ import '../config/firebase_update_config.dart';
 import '../models/firebase_update_kind.dart';
 import '../models/firebase_update_patch_notes_format.dart';
 import '../models/firebase_update_state.dart';
+import '../services/firebase_update_patch_source.dart';
+import '../services/firebase_update_preferences_store.dart';
 import '../services/store_launcher.dart';
 import 'firebase_update_presentation.dart';
 
@@ -19,6 +21,14 @@ class DefaultUpdatePresenter {
   final StoreLauncher _storeLauncher;
   FirebaseUpdateKind? _presentedKind;
   String? _skippedVersion;
+  String? _sessionDismissedVersion;
+
+  // Clock abstraction — replaced in tests via [setClockForTesting] so that
+  // time-based snooze can be verified without real wall-clock delays.
+  DateTime Function() _clock = DateTime.now;
+  DateTime? _snoozedUntil;
+  String? _snoozedForVersion; // tracks which latestVersion triggered the snooze
+  FirebaseUpdatePreferencesStore? _store;
 
   // ---------------------------------------------------------------------------
   // Concurrency guards
@@ -48,6 +58,70 @@ class DefaultUpdatePresenter {
     _presentedKind = null;
     _isPresenting = false;
     _skippedVersion = null;
+    _sessionDismissedVersion = null;
+    _snoozedUntil = null;
+    _snoozedForVersion = null;
+    _store = null;
+    _clock = DateTime.now;
+  }
+
+  // Not annotated @visibleForTesting so that FirebaseUpdate.debugSetClock
+  // can delegate to it without triggering the linter.
+  // ignore: use_setters_to_change_properties
+  void internalSetClock(DateTime Function() clock) {
+    _clock = clock;
+  }
+
+  /// Loads persisted skip-version and snooze state from [store].
+  ///
+  /// Called by [FirebaseUpdate.initialize] after reading from persistent storage.
+  void loadPersistedState({
+    required FirebaseUpdatePreferencesStore store,
+    required String? skippedVersion,
+    required DateTime? snoozedUntil,
+  }) {
+    _store = store;
+    _skippedVersion = skippedVersion;
+    _snoozedUntil = snoozedUntil;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Programmatic state mutators — called from FirebaseUpdate public API so
+  // custom dialog builders can interact with skip/snooze state directly.
+  // ---------------------------------------------------------------------------
+
+  void applySnoozedUntil(DateTime until) {
+    _snoozedUntil = until;
+  }
+
+  /// Computes `_clock() + duration`, stores it, and returns the expiry.
+  /// Used by [FirebaseUpdate.snoozeOptionalUpdate] so the controller stays
+  /// consistent with whatever clock is active (real or injected for tests).
+  DateTime applySnooze(Duration duration, {String? forVersion}) {
+    final until = _clock().add(duration);
+    _snoozedUntil = until;
+    _snoozedForVersion = forVersion;
+    // Timed snooze supersedes any active session dismiss for the same version.
+    _sessionDismissedVersion = null;
+    return until;
+  }
+
+  void applySkippedVersion(String version) {
+    _skippedVersion = version;
+    _sessionDismissedVersion = null;
+  }
+
+  void applySessionDismiss(String version) {
+    _sessionDismissedVersion = version;
+  }
+
+  void clearSnoozedUntil() {
+    _snoozedUntil = null;
+    _snoozedForVersion = null;
+  }
+
+  void clearSkippedVersion() {
+    _skippedVersion = null;
   }
 
   void presentIfNeeded({
@@ -63,7 +137,7 @@ class DefaultUpdatePresenter {
         state.kind == FirebaseUpdateKind.upToDate) {
       if (state.kind == FirebaseUpdateKind.upToDate) {
         _generation++;
-        _skippedVersion = null;
+        _sessionDismissedVersion = null;
         // Dismiss any active overlay so the app returns to a usable state
         // when the server signals that no update or maintenance is needed.
         if (_isPresenting) {
@@ -97,19 +171,49 @@ class DefaultUpdatePresenter {
       return;
     }
 
-    // Clear skip if a newer version is now being offered.
+    // Clear persistent skip, session dismiss, and snooze if a newer version is offered.
     if (state.kind == FirebaseUpdateKind.optionalUpdate &&
-        _skippedVersion != null &&
-        state.latestVersion != null &&
-        state.latestVersion != _skippedVersion) {
-      _skippedVersion = null;
+        state.latestVersion != null) {
+      if (_skippedVersion != null && state.latestVersion != _skippedVersion) {
+        _skippedVersion = null;
+        unawaited(_store?.clearSkippedVersion());
+      }
+      if (_sessionDismissedVersion != null &&
+          state.latestVersion != _sessionDismissedVersion) {
+        _sessionDismissedVersion = null;
+      }
+      // A newer version supersedes any active snooze for an older version.
+      if (_snoozedForVersion != null &&
+          state.latestVersion != _snoozedForVersion) {
+        _snoozedUntil = null;
+        _snoozedForVersion = null;
+        unawaited(_store?.clearSnoozedUntil());
+      }
     }
 
-    // Suppress presentation if the user already dismissed this specific version.
+    // Suppress if user permanently skipped this version.
     if (state.kind == FirebaseUpdateKind.optionalUpdate &&
         state.latestVersion != null &&
         state.latestVersion == _skippedVersion) {
       return;
+    }
+
+    // Suppress for the current session if user tapped "Later" with no snooze.
+    if (state.kind == FirebaseUpdateKind.optionalUpdate &&
+        state.latestVersion != null &&
+        state.latestVersion == _sessionDismissedVersion) {
+      return;
+    }
+
+    // Check time-based snooze for optional updates.
+    if (state.kind == FirebaseUpdateKind.optionalUpdate) {
+      final snoozedUntil = _snoozedUntil;
+      if (snoozedUntil != null && _clock().isBefore(snoozedUntil)) {
+        return; // still snoozed
+      } else if (snoozedUntil != null) {
+        _snoozedUntil = null;
+        unawaited(_store?.clearSnoozedUntil());
+      }
     }
 
     if (_presentedKind == state.kind) {
@@ -184,6 +288,9 @@ class DefaultUpdatePresenter {
           case FirebaseUpdateKind.maintenance:
             await _presentMaintenance(context, state, config);
             break;
+          case FirebaseUpdateKind.shorebirdPatch:
+            await _presentShorebirdPatch(context, state, config);
+            break;
           case FirebaseUpdateKind.idle:
           case FirebaseUpdateKind.upToDate:
             break;
@@ -199,29 +306,42 @@ class DefaultUpdatePresenter {
     FirebaseUpdateConfig config,
   ) async {
     final versionBeingOffered = state.latestVersion;
-    bool userSkipped = false;
+    bool userSnoozed = false;
+    bool userSkippedVersion = false;
 
     final labels = config.presentation.labels;
-    final data = FirebaseUpdatePresentationData(
+
+    final baseData = FirebaseUpdatePresentationData(
       title: state.title ?? labels.optionalUpdateTitle ?? 'Update available',
       state: state,
       isBlocking: false,
       primaryLabel: labels.updateNow ?? 'Update now',
       secondaryLabel: labels.later ?? 'Later',
-      onPrimaryTap: () => _launchStore(
-        context,
-        packageName: config.packageName,
-        fallbackUrl: _resolveStoreUrl(config),
-      ),
+      onPrimaryTap: () {
+        config.onOptionalUpdateTap?.call();
+        _launchStore(
+          context,
+          packageName: config.packageName,
+          fallbackUrl: _resolveStoreUrl(config),
+          override: config.onStoreLaunch,
+        );
+      },
+      tertiaryLabel: config.showSkipVersion
+          ? (labels.skipVersion ?? 'Skip this version')
+          : null,
     );
 
     if (config.resolvesOptionalUpdateAsBottomSheet) {
       await _showOptionalBottomSheet(
         context: context,
         config: config,
-        data: data,
-        onSkip: () {
-          userSkipped = true;
+        data: baseData,
+        onSnooze: () {
+          config.onOptionalLaterTap?.call();
+          userSnoozed = true;
+        },
+        onSkipVersion: () {
+          userSkippedVersion = true;
         },
       );
     } else {
@@ -230,11 +350,21 @@ class DefaultUpdatePresenter {
         useRootNavigator: true,
         barrierColor: config.presentation.theme.barrierColor,
         builder: (dialogContext) {
-          final dialogData = data.copyWith(
+          final dialogData = baseData.copyWith(
             onSecondaryTap: () {
-              userSkipped = true;
+              config.onOptionalLaterTap?.call();
+              userSnoozed = true;
               Navigator.of(dialogContext, rootNavigator: true).pop();
             },
+            tertiaryLabel: config.showSkipVersion
+                ? (labels.skipVersion ?? 'Skip this version')
+                : null,
+            onTertiaryTap: config.showSkipVersion
+                ? () {
+                    userSkippedVersion = true;
+                    Navigator.of(dialogContext, rootNavigator: true).pop();
+                  }
+                : null,
           );
           return _BlurredModalWrapper(
             sigma: config.presentation.theme.dialogBackgroundBlurSigma,
@@ -264,8 +394,22 @@ class DefaultUpdatePresenter {
       );
     }
 
-    if (userSkipped && versionBeingOffered != null) {
+    if (userSnoozed && versionBeingOffered != null) {
+      final snoozeDuration = config.snoozeDuration;
+      if (snoozeDuration != null) {
+        // Persistent time-based snooze.
+        final until = _clock().add(snoozeDuration);
+        _snoozedUntil = until;
+        _snoozedForVersion = versionBeingOffered;
+        unawaited(_store?.setSnoozedUntil(until));
+      } else {
+        // No duration configured — session-only dismiss (cleared on restart).
+        _sessionDismissedVersion = versionBeingOffered;
+      }
+    }
+    if (userSkippedVersion && versionBeingOffered != null) {
       _skippedVersion = versionBeingOffered;
+      unawaited(_store?.setSkippedVersion(versionBeingOffered));
     }
     _presentedKind = null;
   }
@@ -281,11 +425,15 @@ class DefaultUpdatePresenter {
       state: state,
       isBlocking: true,
       primaryLabel: labels.updateNow ?? 'Update now',
-      onPrimaryTap: () => _launchStore(
-        context,
-        packageName: config.packageName,
-        fallbackUrl: _resolveStoreUrl(config),
-      ),
+      onPrimaryTap: () {
+        config.onForceUpdateTap?.call();
+        _launchStore(
+          context,
+          packageName: config.packageName,
+          fallbackUrl: _resolveStoreUrl(config),
+          override: config.onStoreLaunch,
+        );
+      },
     );
 
     if (config.useBottomSheetForForceUpdate) {
@@ -486,7 +634,16 @@ class DefaultUpdatePresenter {
     BuildContext context, {
     String? packageName,
     String? fallbackUrl,
+    VoidCallback? override,
   }) async {
+    if (override != null) {
+      override();
+      if (context.mounted) {
+        Navigator.of(context, rootNavigator: true).maybePop();
+      }
+      return;
+    }
+
     final didLaunch = await _storeLauncher.launch(
       packageName: packageName,
       fallbackUrl: fallbackUrl,
@@ -511,7 +668,8 @@ class DefaultUpdatePresenter {
     required BuildContext context,
     required FirebaseUpdateConfig config,
     required FirebaseUpdatePresentationData data,
-    required VoidCallback onSkip,
+    required VoidCallback onSnooze,
+    required VoidCallback onSkipVersion,
   }) async {
     await showGeneralDialog<void>(
       context: context,
@@ -523,9 +681,18 @@ class DefaultUpdatePresenter {
       pageBuilder: (dialogContext, animation, secondaryAnimation) {
         final sheetData = data.copyWith(
           onSecondaryTap: () {
-            onSkip();
+            onSnooze();
             Navigator.of(dialogContext, rootNavigator: true).pop();
           },
+          tertiaryLabel: config.showSkipVersion
+              ? (config.presentation.labels.skipVersion ?? 'Skip this version')
+              : null,
+          onTertiaryTap: config.showSkipVersion
+              ? () {
+                  onSkipVersion();
+                  Navigator.of(dialogContext, rootNavigator: true).pop();
+                }
+              : null,
         );
         final child =
             config.optionalUpdateWidget?.call(dialogContext, sheetData) ??
@@ -570,6 +737,165 @@ class DefaultUpdatePresenter {
               mainAxisAlignment: MainAxisAlignment.end,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [Material(color: Colors.transparent, child: child)],
+            ),
+          ],
+        );
+      },
+      transitionBuilder: (dialogContext, animation, secondaryAnimation, child) {
+        final curvedAnimation = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutCubic,
+          reverseCurve: Curves.easeInCubic,
+        );
+        return SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0, 0.08),
+            end: Offset.zero,
+          ).animate(curvedAnimation),
+          child: FadeTransition(opacity: curvedAnimation, child: child),
+        );
+      },
+    );
+  }
+
+  Future<void> _presentShorebirdPatch(
+    BuildContext context,
+    FirebaseUpdateState state,
+    FirebaseUpdateConfig config,
+  ) async {
+    final labels = config.presentation.labels;
+    final title = state.title ?? labels.patchAvailableTitle ?? 'Patch ready';
+    final message = state.message ??
+        labels.patchAvailableMessage ??
+        'A patch has been downloaded. Restart the app to apply it.';
+    final applyLabel = labels.applyPatch ?? 'Apply & restart';
+    final laterLabel = labels.later ?? 'Later';
+
+    if (config.resolvesOptionalUpdateAsBottomSheet) {
+      await _showShorebirdPatchBottomSheet(
+        context: context,
+        config: config,
+        title: title,
+        message: message,
+        applyLabel: applyLabel,
+        laterLabel: laterLabel,
+        state: state,
+      );
+    } else {
+      await _showShorebirdPatchDialog(
+        context: context,
+        config: config,
+        title: title,
+        message: message,
+        applyLabel: applyLabel,
+        laterLabel: laterLabel,
+        state: state,
+      );
+    }
+    _presentedKind = null;
+  }
+
+  Future<void> _showShorebirdPatchDialog({
+    required BuildContext context,
+    required FirebaseUpdateConfig config,
+    required String title,
+    required String message,
+    required String applyLabel,
+    required String laterLabel,
+    required FirebaseUpdateState state,
+  }) async {
+    await showDialog<void>(
+      context: context,
+      useRootNavigator: true,
+      barrierColor: config.presentation.theme.barrierColor,
+      builder: (dialogContext) {
+        return _BlurredModalWrapper(
+          sigma: config.presentation.theme.dialogBackgroundBlurSigma,
+          child: Dialog(
+            insetPadding:
+                const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            backgroundColor: Colors.transparent,
+            child: _ShorebirdPatchPanel(
+              patchSource: config.patchSource!,
+              onPatchApplied: config.onPatchApplied,
+              theme: config.presentation.theme,
+              typography: config.presentation.typography,
+              alignment: config.presentation.contentAlignment ??
+                  FirebaseUpdateContentAlignment.center,
+              title: title,
+              message: message,
+              applyLabel: applyLabel,
+              laterLabel: laterLabel,
+              state: state,
+              iconBuilder: config.presentation.iconBuilder,
+              customWidget: config.shorebirdPatchWidget,
+              isSheet: false,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showShorebirdPatchBottomSheet({
+    required BuildContext context,
+    required FirebaseUpdateConfig config,
+    required String title,
+    required String message,
+    required String applyLabel,
+    required String laterLabel,
+    required FirebaseUpdateState state,
+  }) async {
+    await showGeneralDialog<void>(
+      context: context,
+      useRootNavigator: true,
+      barrierDismissible: true,
+      barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
+      barrierColor: config.presentation.theme.barrierColor ?? Colors.black54,
+      transitionDuration: const Duration(milliseconds: 250),
+      pageBuilder: (dialogContext, animation, secondaryAnimation) {
+        final blurSigma =
+            config.presentation.theme.bottomSheetBackgroundBlurSigma ?? 0;
+
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            if (blurSigma > 0)
+              Positioned.fill(
+                child: ClipRect(
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(
+                      sigmaX: blurSigma,
+                      sigmaY: blurSigma,
+                    ),
+                    child: const SizedBox.expand(),
+                  ),
+                ),
+              ),
+            Column(
+              mainAxisAlignment: MainAxisAlignment.end,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Material(
+                  color: Colors.transparent,
+                  child: _ShorebirdPatchPanel(
+                    patchSource: config.patchSource!,
+                    onPatchApplied: config.onPatchApplied,
+                    theme: config.presentation.theme,
+                    typography: config.presentation.typography,
+                    alignment: config.presentation.contentAlignment ??
+                        FirebaseUpdateContentAlignment.start,
+                    title: title,
+                    message: message,
+                    applyLabel: applyLabel,
+                    laterLabel: laterLabel,
+                    state: state,
+                    iconBuilder: config.presentation.iconBuilder,
+                    customWidget: config.shorebirdPatchWidget,
+                    isSheet: true,
+                  ),
+                ),
+              ],
             ),
           ],
         );
@@ -961,7 +1287,7 @@ class _DefaultUpdatePanel extends StatelessWidget {
   }
 
   Widget _buildActions() {
-    return Row(
+    final actionRow = Row(
       children: [
         if (data.secondaryLabel != null && data.onSecondaryTap != null)
           Expanded(
@@ -1001,6 +1327,30 @@ class _DefaultUpdatePanel extends StatelessWidget {
           ),
       ],
     );
+
+    if (data.tertiaryLabel != null && data.onTertiaryTap != null) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          actionRow,
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Center(
+              child: TextButton(
+                onPressed: data.onTertiaryTap,
+                style: TextButton.styleFrom(
+                  foregroundColor: theme.contentColor.withValues(alpha: 0.6),
+                  textStyle: typography.secondaryButtonStyle,
+                ),
+                child: Text(data.tertiaryLabel!),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return actionRow;
   }
 
   @override
@@ -1218,6 +1568,334 @@ class _PatchNotesContentState extends State<_PatchNotesContent> {
               _expanded ? 'Show less' : 'Read more',
               style: readMoreStyle,
             ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Shorebird patch panel
+// ---------------------------------------------------------------------------
+
+class _ShorebirdPatchPanel extends StatefulWidget {
+  const _ShorebirdPatchPanel({
+    required this.patchSource,
+    required this.onPatchApplied,
+    required this.theme,
+    required this.typography,
+    required this.alignment,
+    required this.title,
+    required this.message,
+    required this.applyLabel,
+    required this.laterLabel,
+    required this.state,
+    required this.isSheet,
+    this.iconBuilder,
+    this.customWidget,
+  });
+
+  final FirebaseUpdatePatchSource patchSource;
+  final VoidCallback? onPatchApplied;
+  final FirebaseUpdatePresentationTheme theme;
+  final FirebaseUpdateTypography typography;
+  final FirebaseUpdateContentAlignment alignment;
+  final String title;
+  final String message;
+  final String applyLabel;
+  final String laterLabel;
+  final FirebaseUpdateState state;
+  final bool isSheet;
+  final FirebaseUpdateIconBuilder? iconBuilder;
+  final FirebaseUpdateViewBuilder? customWidget;
+
+  @override
+  State<_ShorebirdPatchPanel> createState() => _ShorebirdPatchPanelState();
+}
+
+class _ShorebirdPatchPanelState extends State<_ShorebirdPatchPanel> {
+  bool _isApplying = false;
+
+  Future<void> _onApplyTap() async {
+    setState(() => _isApplying = true);
+    try {
+      await widget.patchSource.downloadAndApplyPatch();
+      if (!mounted) return;
+      if (widget.onPatchApplied != null) {
+        widget.onPatchApplied!();
+      } else {
+        if (!mounted) return;
+        Navigator.of(context, rootNavigator: true).maybePop();
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          const SnackBar(
+            content: Text('Patch applied! Restart the app to update.'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isApplying = false);
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        SnackBar(
+          content: Text('Failed to apply patch: $e'),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final visualTheme = _ResolvedPresentationTheme.from(context, widget.theme);
+
+    // Build presentation data for this state so custom widgets can receive it.
+    final presentationData = FirebaseUpdatePresentationData(
+      title: widget.title,
+      state: widget.state,
+      isBlocking: false,
+      primaryLabel: widget.applyLabel,
+      onPrimaryTap: _isApplying ? null : _onApplyTap,
+      secondaryLabel: widget.laterLabel,
+      onSecondaryTap: _isApplying
+          ? null
+          : () => Navigator.of(context, rootNavigator: true).maybePop(),
+    );
+
+    if (widget.customWidget != null) {
+      return widget.customWidget!(context, presentationData);
+    }
+
+    if (widget.isSheet) {
+      return _buildSheet(context, visualTheme, presentationData);
+    }
+    return _buildDialogContent(context, visualTheme, presentationData);
+  }
+
+  Widget _buildDialogContent(
+    BuildContext context,
+    _ResolvedPresentationTheme visualTheme,
+    FirebaseUpdatePresentationData data,
+  ) {
+    final maxHeight = MediaQuery.sizeOf(context).height * 0.85;
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: maxHeight),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: visualTheme.surfaceColor,
+          borderRadius: widget.theme.dialogBorderRadius,
+          border: Border.all(color: visualTheme.outlineColor),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x29000000),
+              blurRadius: 32,
+              offset: Offset(0, 16),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: widget.theme.dialogBorderRadius,
+          child: _buildPanelContent(context, visualTheme, data),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSheet(
+    BuildContext context,
+    _ResolvedPresentationTheme visualTheme,
+    FirebaseUpdatePresentationData data,
+  ) {
+    final size = MediaQuery.sizeOf(context);
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 24),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: size.height * 0.85),
+        child: SizedBox(
+          width: size.width,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: visualTheme.surfaceColor,
+              borderRadius: widget.theme.sheetBorderRadius,
+              border: Border.all(color: visualTheme.outlineColor),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x26000000),
+                  blurRadius: 24,
+                  offset: Offset(0, -4),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: widget.theme.sheetBorderRadius,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 10),
+                  Container(
+                    width: 44,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: visualTheme.outlineColor.withValues(alpha: 0.9),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                  Flexible(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                      child: _buildContent(context, visualTheme, data),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+                    child: _buildActionRow(context, visualTheme),
+                  ),
+                  if (bottomInset > 0) SizedBox(height: bottomInset),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPanelContent(
+    BuildContext context,
+    _ResolvedPresentationTheme visualTheme,
+    FirebaseUpdatePresentationData data,
+  ) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Flexible(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+            child: _buildContent(context, visualTheme, data),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+          child: _buildActionRow(context, visualTheme),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildContent(
+    BuildContext context,
+    _ResolvedPresentationTheme visualTheme,
+    FirebaseUpdatePresentationData data,
+  ) {
+    final resolvedIcon = widget.iconBuilder?.call(context, widget.state);
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: widget.alignment == FirebaseUpdateContentAlignment.start
+          ? CrossAxisAlignment.start
+          : widget.alignment == FirebaseUpdateContentAlignment.end
+              ? CrossAxisAlignment.end
+              : CrossAxisAlignment.center,
+      children: [
+        Align(
+          alignment: widget.alignment == FirebaseUpdateContentAlignment.start
+              ? Alignment.centerLeft
+              : widget.alignment == FirebaseUpdateContentAlignment.end
+                  ? Alignment.centerRight
+                  : Alignment.center,
+          child: resolvedIcon ??
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: visualTheme.accentColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Center(
+                  child: Icon(
+                    Icons.auto_fix_high_rounded,
+                    color: visualTheme.accentColor,
+                  ),
+                ),
+              ),
+        ),
+        const SizedBox(height: 18),
+        Text(
+          widget.title,
+          textAlign: widget.alignment == FirebaseUpdateContentAlignment.start
+              ? TextAlign.start
+              : widget.alignment == FirebaseUpdateContentAlignment.end
+                  ? TextAlign.end
+                  : TextAlign.center,
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            color: visualTheme.contentColor,
+            fontWeight: FontWeight.w800,
+          ).merge(widget.typography.titleStyle),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          widget.message,
+          textAlign: widget.alignment == FirebaseUpdateContentAlignment.start
+              ? TextAlign.start
+              : widget.alignment == FirebaseUpdateContentAlignment.end
+                  ? TextAlign.end
+                  : TextAlign.center,
+          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+            color: visualTheme.contentColor.withValues(alpha: 0.86),
+            height: 1.45,
+          ).merge(widget.typography.messageStyle),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionRow(
+    BuildContext context,
+    _ResolvedPresentationTheme visualTheme,
+  ) {
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton(
+            onPressed: _isApplying
+                ? null
+                : () => Navigator.of(context, rootNavigator: true).maybePop(),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: visualTheme.contentColor,
+              side: BorderSide(color: visualTheme.outlineColor),
+              minimumSize: const Size.fromHeight(54),
+              textStyle: widget.typography.secondaryButtonStyle,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+              ),
+            ),
+            child: Text(widget.laterLabel),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: FilledButton(
+            onPressed: _isApplying ? null : _onApplyTap,
+            style: FilledButton.styleFrom(
+              backgroundColor: visualTheme.accentColor,
+              foregroundColor: visualTheme.accentForegroundColor,
+              minimumSize: const Size.fromHeight(54),
+              textStyle: widget.typography.primaryButtonStyle,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+              ),
+            ),
+            child: _isApplying
+                ? SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: visualTheme.accentForegroundColor,
+                    ),
+                  )
+                : Text(widget.applyLabel),
           ),
         ),
       ],

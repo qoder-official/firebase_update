@@ -96,6 +96,10 @@ class FirebaseUpdateLabels {
     this.releaseNotesHeading,
     this.readMore,
     this.showLess,
+    this.skipVersion,
+    this.patchAvailableTitle,
+    this.patchAvailableMessage,
+    this.applyPatch,
   });
 
   /// Fallback title for optional update prompts when the Remote Config payload
@@ -137,6 +141,24 @@ class FirebaseUpdateLabels {
   /// Label for the collapse link when patch notes are expanded.
   /// Defaults to `'Show less'`.
   final String? showLess;
+
+  /// Label for the "Skip this version" tertiary button on optional-update
+  /// prompts. Only shown when [FirebaseUpdateConfig.showSkipVersion] is `true`.
+  /// Defaults to `'Skip this version'`.
+  final String? skipVersion;
+
+  /// Fallback title for the patch-available prompt when no title is provided
+  /// by the [FirebaseUpdatePatchSource].
+  /// Defaults to `'Patch ready'`.
+  final String? patchAvailableTitle;
+
+  /// Fallback body message for the patch-available prompt.
+  /// Defaults to `'A patch has been downloaded. Restart the app to apply it.'`.
+  final String? patchAvailableMessage;
+
+  /// Label for the primary CTA on patch-available prompts.
+  /// Defaults to `'Apply & restart'`.
+  final String? applyPatch;
 }
 
 /// Signature for a builder that replaces the default package-managed modal
@@ -280,6 +302,8 @@ class FirebaseUpdatePresentationData {
     required this.onPrimaryTap,
     this.secondaryLabel,
     this.onSecondaryTap,
+    this.tertiaryLabel,
+    this.onTertiaryTap,
   });
 
   /// The resolved dialog or sheet title.
@@ -303,6 +327,13 @@ class FirebaseUpdatePresentationData {
   /// Callback for the secondary/dismiss button. Pops the modal.
   final VoidCallback? onSecondaryTap;
 
+  /// Label for the optional tertiary action button (e.g. 'Skip this version').
+  /// When `null`, no tertiary button is shown.
+  final String? tertiaryLabel;
+
+  /// Callback for the tertiary action button.
+  final VoidCallback? onTertiaryTap;
+
   FirebaseUpdatePresentationData copyWith({
     String? title,
     FirebaseUpdateState? state,
@@ -311,6 +342,8 @@ class FirebaseUpdatePresentationData {
     VoidCallback? onPrimaryTap,
     String? secondaryLabel,
     VoidCallback? onSecondaryTap,
+    String? tertiaryLabel,
+    VoidCallback? onTertiaryTap,
   }) {
     return FirebaseUpdatePresentationData(
       title: title ?? this.title,
@@ -320,6 +353,8 @@ class FirebaseUpdatePresentationData {
       onPrimaryTap: onPrimaryTap ?? this.onPrimaryTap,
       secondaryLabel: secondaryLabel ?? this.secondaryLabel,
       onSecondaryTap: onSecondaryTap ?? this.onSecondaryTap,
+      tertiaryLabel: tertiaryLabel ?? this.tertiaryLabel,
+      onTertiaryTap: onTertiaryTap ?? this.onTertiaryTap,
     );
   }
 }

@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
 import '../presentation/firebase_update_presentation.dart';
+import '../services/firebase_update_patch_source.dart';
+import '../services/firebase_update_preferences_store.dart';
 import 'firebase_update_store_urls.dart';
 
 /// Configuration for `firebase_update`.
@@ -45,6 +47,16 @@ class FirebaseUpdateConfig {
     this.forceUpdateWidget,
     this.optionalUpdateWidget,
     this.maintenanceWidget,
+    this.onStoreLaunch,
+    this.onForceUpdateTap,
+    this.onOptionalUpdateTap,
+    this.onOptionalLaterTap,
+    this.showSkipVersion = false,
+    this.snoozeDuration,
+    this.patchSource,
+    this.onPatchApplied,
+    this.shorebirdPatchWidget,
+    this.preferencesStore,
   });
 
   /// The Remote Config parameter key whose value is a JSON object containing
@@ -131,6 +143,104 @@ class FirebaseUpdateConfig {
   ///
   /// Receives [FirebaseUpdatePresentationData] with the resolved title and state.
   final FirebaseUpdateViewBuilder? maintenanceWidget;
+
+  // ---------------------------------------------------------------------------
+  // Callback hooks
+  // ---------------------------------------------------------------------------
+
+  /// Overrides the default store-launch behavior for "Update now" buttons.
+  ///
+  /// When provided, this callback is called **instead of** the default flow
+  /// (which tries `app_review` first, then falls back to `url_launcher` with
+  /// the platform-appropriate store URL). Use this when you need a fully
+  /// custom open-store experience — deep link, in-app browser, analytics, etc.
+  ///
+  /// The dialog/sheet is dismissed automatically after the callback returns.
+  final VoidCallback? onStoreLaunch;
+
+  /// Called when the user taps "Update now" on the force-update dialog.
+  ///
+  /// Fires in addition to the default store-launch behavior.
+  final VoidCallback? onForceUpdateTap;
+
+  /// Called when the user taps "Update now" on the optional-update dialog or
+  /// sheet.
+  ///
+  /// Fires in addition to the default store-launch behavior.
+  final VoidCallback? onOptionalUpdateTap;
+
+  /// Called when the user taps "Later" on the optional-update dialog or sheet.
+  ///
+  /// Fires in addition to the default snooze behavior.
+  final VoidCallback? onOptionalLaterTap;
+
+  // ---------------------------------------------------------------------------
+  // Skip version
+  // ---------------------------------------------------------------------------
+
+  /// When `true`, a "Skip this version" button is shown on the optional-update
+  /// dialog or sheet. Tapping it permanently hides prompts for that specific
+  /// version (persisted across restarts via [preferencesStore]).
+  ///
+  /// Defaults to `false`.
+  final bool showSkipVersion;
+
+  // ---------------------------------------------------------------------------
+  // Snooze
+  // ---------------------------------------------------------------------------
+
+  /// Duration for which the optional-update prompt is suppressed after the
+  /// user taps "Later".
+  ///
+  /// When `null` (the default), tapping "Later" hides the prompt for the
+  /// current app session only — it reappears on the next app launch.
+  ///
+  /// Set a [Duration] (e.g. `Duration(hours: 24)`) to persist the snooze
+  /// across restarts so the prompt stays hidden for that period even after
+  /// the user relaunches the app.
+  ///
+  /// You can also call [FirebaseUpdate.instance.snoozeOptionalUpdate] or
+  /// [FirebaseUpdate.instance.dismissOptionalUpdateForSession] programmatically
+  /// from a custom [optionalUpdateWidget] to update snooze state without
+  /// relying on the built-in buttons.
+  final Duration? snoozeDuration;
+
+  // ---------------------------------------------------------------------------
+  // Shorebird patches
+  // ---------------------------------------------------------------------------
+
+  /// Inject a [FirebaseUpdatePatchSource] to enable automatic patch checking
+  /// when the app is up to date.
+  ///
+  /// When non-null the package calls [FirebaseUpdatePatchSource.isPatchAvailable]
+  /// each time an [FirebaseUpdateKind.upToDate] state is emitted, and promotes
+  /// to [FirebaseUpdateKind.shorebirdPatch] if a patch is found.
+  final FirebaseUpdatePatchSource? patchSource;
+
+  /// Called immediately after [FirebaseUpdatePatchSource.downloadAndApplyPatch]
+  /// completes successfully.
+  ///
+  /// Use this to trigger a hot restart so the patch takes effect. If `null`,
+  /// a snackbar is shown instructing the user to restart manually.
+  final VoidCallback? onPatchApplied;
+
+  /// Replaces the default patch-available dialog or bottom sheet with a custom
+  /// widget.
+  ///
+  /// Receives [FirebaseUpdatePresentationData] with the patch state, including
+  /// a primary tap callback that starts the async patch download.
+  final FirebaseUpdateViewBuilder? shorebirdPatchWidget;
+
+  // ---------------------------------------------------------------------------
+  // Persistence
+  // ---------------------------------------------------------------------------
+
+  /// Storage backend used to persist the skipped version and snooze expiry
+  /// across app restarts.
+  ///
+  /// Defaults to [SharedPreferencesFirebaseUpdateStore]. Inject a custom
+  /// implementation for encrypted storage, database-backed storage, etc.
+  final FirebaseUpdatePreferencesStore? preferencesStore;
 
   bool get resolvesOptionalUpdateAsBottomSheet =>
       useBottomSheetForOptionalUpdate ??

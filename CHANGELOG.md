@@ -1,3 +1,18 @@
+## 1.0.1
+
+- **Topics**: Added pub.dev topics (`updates`, `versioning`, `remote-config`, `firebase`, `app-management`)
+- **Store launch override**: New `onStoreLaunch` callback on `FirebaseUpdateConfig` — replaces the default `app_review` + `url_launcher` store-open flow with your own logic; dialog dismisses automatically after the callback returns
+- **Button callback hooks**: `onForceUpdateTap`, `onOptionalUpdateTap`, `onOptionalLaterTap` on `FirebaseUpdateConfig` — fire in addition to default behavior for analytics and side effects
+- **Skip version**: Opt-in `showSkipVersion: bool` config flag adds a persistent "Skip this version" tertiary button to optional-update prompts; persists across restarts via `shared_preferences`
+- **Session dismiss (default)**: Tapping "Later" now suppresses the optional-update prompt for the current app session. The prompt reappears on the next launch
+- **Timed snooze (opt-in)**: Set `snoozeDuration` (e.g. `Duration(hours: 24)`) to persist the snooze across restarts — the prompt stays hidden until the duration elapses
+- **Persistence**: New `FirebaseUpdatePreferencesStore` abstract interface + `SharedPreferencesFirebaseUpdateStore` default implementation; inject a custom store via `FirebaseUpdateConfig.preferencesStore`
+- **Programmatic skip/snooze API**: `FirebaseUpdate.instance.snoozeOptionalUpdate()`, `skipVersion()`, `dismissOptionalUpdateForSession()`, `clearSnooze()`, `clearSkippedVersion()` — lets custom `optionalUpdateWidget` builders drive SDK state without relying on built-in buttons
+- **Shorebird patches**: New `FirebaseUpdatePatchSource` abstract interface, `FirebaseUpdateKind.shorebirdPatch` state, `patchSource` + `onPatchApplied` + `shorebirdPatchWidget` config fields, and a built-in patch dialog/sheet with async download progress indicator; `onPatchApplied` callback lets you trigger your own restart logic
+- **Labels**: Added `skipVersion`, `patchAvailableTitle`, `patchAvailableMessage`, `applyPatch` to `FirebaseUpdateLabels`
+- **Presentation data**: Added `tertiaryLabel` and `onTertiaryTap` to `FirebaseUpdatePresentationData` (and `copyWith`)
+- **Dependencies**: Added `shared_preferences: ">=2.2.0 <4.0.0"`
+
 ## 1.0.0
 
 First stable release.

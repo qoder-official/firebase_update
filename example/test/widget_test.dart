@@ -8,6 +8,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('firebase_update'), findsOneWidget);
-    expect(find.text('State Simulator (Local Overrides)'), findsOneWidget);
+    expect(find.text('Simulate Remote Config scenarios'), findsOneWidget);
   });
 }

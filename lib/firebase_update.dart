@@ -5,4 +5,6 @@ export 'src/models/firebase_update_kind.dart';
 export 'src/models/firebase_update_patch_notes_format.dart';
 export 'src/models/firebase_update_state.dart';
 export 'src/presentation/firebase_update_presentation.dart';
+export 'src/services/firebase_update_patch_source.dart';
+export 'src/services/firebase_update_preferences_store.dart';
 export 'src/widgets/firebase_update_builder.dart';
