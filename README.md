@@ -1,6 +1,6 @@
 # firebase_update
 
-> Control your app's update story from Firebase — without shipping a new build.
+> Flutter force update, maintenance mode, and real-time update prompts with Firebase Remote Config.
 
 [![pub.dev](https://img.shields.io/pub/v/firebase_update.svg)](https://pub.dev/packages/firebase_update)
 [![License: BSD-3-Clause](https://img.shields.io/badge/license-BSD--3--Clause-blue.svg)](LICENSE)

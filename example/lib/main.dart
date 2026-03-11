@@ -1,6 +1,5 @@
 import 'package:flutter/widgets.dart';
-
-import 'example_app.dart';
+import 'package:firebase_update_example/example_app.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
