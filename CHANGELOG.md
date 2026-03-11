@@ -1,3 +1,11 @@
+## 1.0.3
+
+- **Renamed presentation callbacks**: `FirebaseUpdatePresentationData` callbacks renamed from `onPrimaryTap`/`onSecondaryTap`/`onTertiaryTap` to `onUpdateClick`/`onLaterClick`/`onSkipClick` for clarity
+- **Dismiss booleans**: Added `dismissOnUpdateClick`, `dismissOnLaterClick`, `dismissOnSkipClick` (all default `true`) to `FirebaseUpdatePresentationData` — controls whether the modal auto-dismisses after each button tap; custom widget builders can set any to `false` to handle navigation themselves
+- **Real-time snooze**: Tapping "Later" now starts a timer internally — the optional update dialog re-appears automatically after the snooze duration elapses, without requiring an app restart or a new Remote Config push. Version-aware: a different `latestVersion` clears the snooze immediately and re-prompts
+- **Store fallback always opens**: When the app is not found on the store (e.g. staging build), the launcher now opens the store home page (`https://apps.apple.com/` on iOS/macOS, `market://search` on Android, `ms-windows-store://` on Windows) instead of showing an error toast
+- **Removed error toast**: The "Unable to open the update link" snackbar is gone — the store always opens via one of the four priority tiers
+
 ## 1.0.2
 
 - **RC-driven store URLs**: `store_url_android`, `store_url_ios`, `store_url_macos`, `store_url_windows`, `store_url_linux`, `store_url_web` can now be set in the Remote Config JSON payload. When present, they take priority over the local `FirebaseUpdateConfig.fallbackStoreUrls` values, allowing store URLs to be updated without a rebuild.
