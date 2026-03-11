@@ -292,6 +292,12 @@ class FirebaseUpdatePresentationTheme {
 ///
 /// Contains the resolved title, the current [FirebaseUpdateState], button
 /// labels, and tap callbacks wired to the correct package behavior.
+///
+/// Each action callback has a paired `dismissOnXClick` boolean (default
+/// `true`) that controls whether the modal is automatically dismissed after
+/// the callback runs.  Set it to `false` when the callback handles navigation
+/// itself — for example the built-in store-launcher pops the dialog
+/// conditionally only on a successful launch.
 @immutable
 class FirebaseUpdatePresentationData {
   const FirebaseUpdatePresentationData({
@@ -299,11 +305,14 @@ class FirebaseUpdatePresentationData {
     required this.state,
     required this.isBlocking,
     required this.primaryLabel,
-    required this.onPrimaryTap,
+    required this.onUpdateClick,
+    this.dismissOnUpdateClick = true,
     this.secondaryLabel,
-    this.onSecondaryTap,
+    this.onLaterClick,
+    this.dismissOnLaterClick = true,
     this.tertiaryLabel,
-    this.onTertiaryTap,
+    this.onSkipClick,
+    this.dismissOnSkipClick = true,
   });
 
   /// The resolved dialog or sheet title.
@@ -318,43 +327,69 @@ class FirebaseUpdatePresentationData {
   /// Label for the primary CTA button (e.g. 'Update now').
   final String primaryLabel;
 
-  /// Callback for the primary CTA. Launches the store and pops the modal.
-  final VoidCallback? onPrimaryTap;
+  /// Callback invoked when the user taps the primary CTA (e.g. 'Update now').
+  final VoidCallback? onUpdateClick;
+
+  /// When `true` (the default), the modal is dismissed automatically after
+  /// [onUpdateClick] is called.  Set to `false` when the callback handles
+  /// navigation itself (e.g. the built-in store-launcher which pops the modal
+  /// only on a successful launch).
+  final bool dismissOnUpdateClick;
 
   /// Label for the secondary/dismiss button (e.g. 'Later').
   final String? secondaryLabel;
 
-  /// Callback for the secondary/dismiss button. Pops the modal.
-  final VoidCallback? onSecondaryTap;
+  /// Callback invoked when the user taps the secondary button (e.g. 'Later').
+  ///
+  /// When a snooze duration is configured this callback also arms the
+  /// real-time snooze timer so the update prompt re-appears automatically
+  /// after the configured delay — without requiring an app restart or a new
+  /// Remote Config push.
+  final VoidCallback? onLaterClick;
+
+  /// When `true` (the default), the modal is dismissed automatically after
+  /// [onLaterClick] is called.
+  final bool dismissOnLaterClick;
 
   /// Label for the optional tertiary action button (e.g. 'Skip this version').
   /// When `null`, no tertiary button is shown.
   final String? tertiaryLabel;
 
-  /// Callback for the tertiary action button.
-  final VoidCallback? onTertiaryTap;
+  /// Callback invoked when the user taps the tertiary button
+  /// (e.g. 'Skip this version').
+  final VoidCallback? onSkipClick;
+
+  /// When `true` (the default), the modal is dismissed automatically after
+  /// [onSkipClick] is called.
+  final bool dismissOnSkipClick;
 
   FirebaseUpdatePresentationData copyWith({
     String? title,
     FirebaseUpdateState? state,
     bool? isBlocking,
     String? primaryLabel,
-    VoidCallback? onPrimaryTap,
+    VoidCallback? onUpdateClick,
+    bool? dismissOnUpdateClick,
     String? secondaryLabel,
-    VoidCallback? onSecondaryTap,
+    VoidCallback? onLaterClick,
+    bool? dismissOnLaterClick,
     String? tertiaryLabel,
-    VoidCallback? onTertiaryTap,
+    VoidCallback? onSkipClick,
+    bool? dismissOnSkipClick,
   }) {
     return FirebaseUpdatePresentationData(
       title: title ?? this.title,
       state: state ?? this.state,
       isBlocking: isBlocking ?? this.isBlocking,
       primaryLabel: primaryLabel ?? this.primaryLabel,
-      onPrimaryTap: onPrimaryTap ?? this.onPrimaryTap,
+      onUpdateClick: onUpdateClick ?? this.onUpdateClick,
+      dismissOnUpdateClick: dismissOnUpdateClick ?? this.dismissOnUpdateClick,
       secondaryLabel: secondaryLabel ?? this.secondaryLabel,
-      onSecondaryTap: onSecondaryTap ?? this.onSecondaryTap,
+      onLaterClick: onLaterClick ?? this.onLaterClick,
+      dismissOnLaterClick: dismissOnLaterClick ?? this.dismissOnLaterClick,
       tertiaryLabel: tertiaryLabel ?? this.tertiaryLabel,
-      onTertiaryTap: onTertiaryTap ?? this.onTertiaryTap,
+      onSkipClick: onSkipClick ?? this.onSkipClick,
+      dismissOnSkipClick: dismissOnSkipClick ?? this.dismissOnSkipClick,
     );
   }
 }

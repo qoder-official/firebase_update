@@ -236,11 +236,11 @@ void main() {
             content: Text(data.state.message ?? 'No message'),
             actions: [
               TextButton(
-                onPressed: data.onSecondaryTap,
+                onPressed: data.onLaterClick,
                 child: const Text('Not now'),
               ),
               FilledButton(
-                onPressed: data.onPrimaryTap,
+                onPressed: data.onUpdateClick,
                 child: const Text('Install'),
               ),
             ],
@@ -1019,7 +1019,7 @@ void main() {
               title: const Text('Custom patch dialog'),
               actions: [
                 TextButton(
-                  onPressed: data.onSecondaryTap,
+                  onPressed: data.onLaterClick,
                   child: const Text('Close'),
                 ),
               ],

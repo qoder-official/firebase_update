@@ -26,9 +26,20 @@ class DefaultUpdatePresenter {
   // Clock abstraction — replaced in tests via [setClockForTesting] so that
   // time-based snooze can be verified without real wall-clock delays.
   DateTime Function() _clock = DateTime.now;
+  // True when a test has injected a custom clock.  When set, the real-time
+  // snooze expiry timer is skipped — tests exercise re-appearance by advancing
+  // the injected clock and calling applyPayload (which calls presentIfNeeded).
+  bool _clockOverridden = false;
   DateTime? _snoozedUntil;
   String? _snoozedForVersion; // tracks which latestVersion triggered the snooze
   FirebaseUpdatePreferencesStore? _store;
+
+  // Real-time snooze timer — fires presentIfNeeded when the snooze expires,
+  // re-showing the optional update prompt without a restart or RC push.
+  Timer? _snoozeExpiryTimer;
+  GlobalKey<NavigatorState>? _lastNavigatorKey;
+  FirebaseUpdateConfig? _lastConfig;
+  FirebaseUpdateState? _lastOptionalState;
 
   // ---------------------------------------------------------------------------
   // Concurrency guards
@@ -61,8 +72,14 @@ class DefaultUpdatePresenter {
     _sessionDismissedVersion = null;
     _snoozedUntil = null;
     _snoozedForVersion = null;
+    _snoozeExpiryTimer?.cancel();
+    _snoozeExpiryTimer = null;
+    _lastNavigatorKey = null;
+    _lastConfig = null;
+    _lastOptionalState = null;
     _store = null;
     _clock = DateTime.now;
+    _clockOverridden = false;
   }
 
   // Not annotated @visibleForTesting so that FirebaseUpdate.debugSetClock
@@ -70,6 +87,7 @@ class DefaultUpdatePresenter {
   // ignore: use_setters_to_change_properties
   void internalSetClock(DateTime Function() clock) {
     _clock = clock;
+    _clockOverridden = true;
   }
 
   /// Loads persisted skip-version and snooze state from [store].
@@ -118,10 +136,43 @@ class DefaultUpdatePresenter {
   void clearSnoozedUntil() {
     _snoozedUntil = null;
     _snoozedForVersion = null;
+    _snoozeExpiryTimer?.cancel();
+    _snoozeExpiryTimer = null;
   }
 
   void clearSkippedVersion() {
     _skippedVersion = null;
+  }
+
+  // Starts (or restarts) the real-time snooze expiry timer.
+  // When it fires, the optional update dialog is re-presented automatically —
+  // no restart or RC push required.
+  //
+  // The timer is skipped when a test clock has been injected via
+  // [internalSetClock]; tests exercise re-appearance by advancing the clock
+  // and calling applyPayload / presentIfNeeded directly.
+  void _startSnoozeTimer(
+    Duration duration,
+    String forVersion,
+    GlobalKey<NavigatorState> navigatorKey,
+    FirebaseUpdateConfig config,
+    FirebaseUpdateState state,
+  ) {
+    if (_clockOverridden) return;
+    _snoozeExpiryTimer?.cancel();
+    _snoozeExpiryTimer = Timer(duration, () {
+      _snoozeExpiryTimer = null;
+      // Clear the expired snooze so presentIfNeeded won't suppress the dialog.
+      if (_snoozedForVersion == forVersion) {
+        _snoozedUntil = null;
+        _snoozedForVersion = null;
+      }
+      // Use stored context; fall back to the latest seen optional state.
+      final key = _lastNavigatorKey ?? navigatorKey;
+      final cfg = _lastConfig ?? config;
+      final st = _lastOptionalState ?? state;
+      presentIfNeeded(state: st, config: cfg, navigatorKey: key);
+    });
   }
 
   void presentIfNeeded({
@@ -131,6 +182,13 @@ class DefaultUpdatePresenter {
   }) {
     if (!config.enableDefaultPresentation || navigatorKey == null) {
       return;
+    }
+
+    // Keep a reference to the latest navigator/config for the snooze timer.
+    _lastNavigatorKey = navigatorKey;
+    _lastConfig = config;
+    if (state.kind == FirebaseUpdateKind.optionalUpdate) {
+      _lastOptionalState = state;
     }
 
     if (state.kind == FirebaseUpdateKind.idle ||
@@ -305,18 +363,49 @@ class DefaultUpdatePresenter {
     FirebaseUpdateConfig config,
   ) async {
     final versionBeingOffered = state.latestVersion;
-    bool userSnoozed = false;
-    bool userSkippedVersion = false;
-
     final labels = config.presentation.labels;
 
-    final baseData = FirebaseUpdatePresentationData(
+    // Immediately record snooze / skip when the user taps the button — before
+    // the dialog closes — so the real-time snooze timer can start right away.
+    void onLater() {
+      config.onOptionalLaterTap?.call();
+      if (versionBeingOffered != null) {
+        final snoozeDuration = config.snoozeDuration;
+        if (snoozeDuration != null) {
+          final until = _clock().add(snoozeDuration);
+          _snoozedUntil = until;
+          _snoozedForVersion = versionBeingOffered;
+          unawaited(_store?.setSnoozedUntil(until));
+          // _lastNavigatorKey is guaranteed non-null here: presentIfNeeded
+          // stores it before calling _presentOptionalUpdate.
+          if (_lastNavigatorKey != null) {
+            _startSnoozeTimer(
+              snoozeDuration,
+              versionBeingOffered,
+              _lastNavigatorKey!,
+              config,
+              state,
+            );
+          }
+        } else {
+          _sessionDismissedVersion = versionBeingOffered;
+        }
+      }
+    }
+
+    void onSkip() {
+      if (versionBeingOffered != null) {
+        _skippedVersion = versionBeingOffered;
+        unawaited(_store?.setSkippedVersion(versionBeingOffered));
+      }
+    }
+
+    final data = FirebaseUpdatePresentationData(
       title: state.title ?? labels.optionalUpdateTitle ?? 'Update available',
       state: state,
       isBlocking: false,
       primaryLabel: labels.updateNow ?? 'Update now',
-      secondaryLabel: labels.later ?? 'Later',
-      onPrimaryTap: () {
+      onUpdateClick: () {
         config.onOptionalUpdateTap?.call();
         _launchStore(
           context,
@@ -325,89 +414,51 @@ class DefaultUpdatePresenter {
           override: config.onStoreLaunch,
         );
       },
+      // _launchStore handles its own pop on success, so don't double-pop.
+      dismissOnUpdateClick: false,
+      secondaryLabel: labels.later ?? 'Later',
+      onLaterClick: onLater,
       tertiaryLabel: config.showSkipVersion
           ? (labels.skipVersion ?? 'Skip this version')
           : null,
+      onSkipClick: config.showSkipVersion ? onSkip : null,
     );
 
     if (config.resolvesOptionalUpdateAsBottomSheet) {
       await _showOptionalBottomSheet(
         context: context,
         config: config,
-        data: baseData,
-        onSnooze: () {
-          config.onOptionalLaterTap?.call();
-          userSnoozed = true;
-        },
-        onSkipVersion: () {
-          userSkippedVersion = true;
-        },
+        data: data,
       );
     } else {
       await showDialog<void>(
         context: context,
         useRootNavigator: true,
         barrierColor: config.presentation.theme.barrierColor,
-        builder: (dialogContext) {
-          final dialogData = baseData.copyWith(
-            onSecondaryTap: () {
-              config.onOptionalLaterTap?.call();
-              userSnoozed = true;
-              Navigator.of(dialogContext, rootNavigator: true).pop();
-            },
-            tertiaryLabel: config.showSkipVersion
-                ? (labels.skipVersion ?? 'Skip this version')
-                : null,
-            onTertiaryTap: config.showSkipVersion
-                ? () {
-                    userSkippedVersion = true;
-                    Navigator.of(dialogContext, rootNavigator: true).pop();
-                  }
-                : null,
-          );
-          return _BlurredModalWrapper(
-            sigma: config.presentation.theme.dialogBackgroundBlurSigma,
-            child:
-                config.optionalUpdateWidget?.call(dialogContext, dialogData) ??
-                    _DefaultUpdateDialog(
-                      data: dialogData,
-                      theme: config.presentation.theme,
-                      iconBuilder: config.presentation.iconBuilder,
-                      alignment: config.presentation.contentAlignment ??
-                          FirebaseUpdateContentAlignment.center,
-                      notesAlignment: config.presentation.patchNotesAlignment ??
-                          FirebaseUpdateContentAlignment.start,
-                      typography: config.presentation.typography,
-                      releaseNotesHeading:
-                          config.presentation.labels.releaseNotesHeading ??
-                              'Release notes',
-                      readMoreLabel:
-                          config.presentation.labels.readMore ?? 'Read more',
-                      showLessLabel:
-                          config.presentation.labels.showLess ?? 'Show less',
-                    ),
-          );
-        },
+        builder: (dialogContext) => _BlurredModalWrapper(
+          sigma: config.presentation.theme.dialogBackgroundBlurSigma,
+          child: config.optionalUpdateWidget?.call(dialogContext, data) ??
+              _DefaultUpdateDialog(
+                data: data,
+                theme: config.presentation.theme,
+                iconBuilder: config.presentation.iconBuilder,
+                alignment: config.presentation.contentAlignment ??
+                    FirebaseUpdateContentAlignment.center,
+                notesAlignment: config.presentation.patchNotesAlignment ??
+                    FirebaseUpdateContentAlignment.start,
+                typography: config.presentation.typography,
+                releaseNotesHeading:
+                    config.presentation.labels.releaseNotesHeading ??
+                        'Release notes',
+                readMoreLabel:
+                    config.presentation.labels.readMore ?? 'Read more',
+                showLessLabel:
+                    config.presentation.labels.showLess ?? 'Show less',
+              ),
+        ),
       );
     }
 
-    if (userSnoozed && versionBeingOffered != null) {
-      final snoozeDuration = config.snoozeDuration;
-      if (snoozeDuration != null) {
-        // Persistent time-based snooze.
-        final until = _clock().add(snoozeDuration);
-        _snoozedUntil = until;
-        _snoozedForVersion = versionBeingOffered;
-        unawaited(_store?.setSnoozedUntil(until));
-      } else {
-        // No duration configured — session-only dismiss (cleared on restart).
-        _sessionDismissedVersion = versionBeingOffered;
-      }
-    }
-    if (userSkippedVersion && versionBeingOffered != null) {
-      _skippedVersion = versionBeingOffered;
-      unawaited(_store?.setSkippedVersion(versionBeingOffered));
-    }
     _presentedKind = null;
   }
 
@@ -422,7 +473,7 @@ class DefaultUpdatePresenter {
       state: state,
       isBlocking: true,
       primaryLabel: labels.updateNow ?? 'Update now',
-      onPrimaryTap: () {
+      onUpdateClick: () {
         config.onForceUpdateTap?.call();
         _launchStore(
           context,
@@ -431,6 +482,8 @@ class DefaultUpdatePresenter {
           override: config.onStoreLaunch,
         );
       },
+      // _launchStore handles its own pop on success, so don't double-pop.
+      dismissOnUpdateClick: false,
     );
 
     if (config.useBottomSheetForForceUpdate) {
@@ -569,7 +622,7 @@ class DefaultUpdatePresenter {
       state: state,
       isBlocking: true,
       primaryLabel: labels.okay ?? 'Okay',
-      onPrimaryTap: null,
+      onUpdateClick: null,
     );
 
     if (config.useBottomSheetForMaintenance) {
@@ -639,22 +692,13 @@ class DefaultUpdatePresenter {
 
     if (didLaunch) {
       Navigator.of(context, rootNavigator: true).maybePop();
-      return;
     }
-
-    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-      const SnackBar(
-        content: Text('Unable to open the update link right now.'),
-      ),
-    );
   }
 
   Future<void> _showOptionalBottomSheet({
     required BuildContext context,
     required FirebaseUpdateConfig config,
     required FirebaseUpdatePresentationData data,
-    required VoidCallback onSnooze,
-    required VoidCallback onSkipVersion,
   }) async {
     await showGeneralDialog<void>(
       context: context,
@@ -664,25 +708,12 @@ class DefaultUpdatePresenter {
       barrierColor: config.presentation.theme.barrierColor ?? Colors.black54,
       transitionDuration: const Duration(milliseconds: 250),
       pageBuilder: (dialogContext, animation, secondaryAnimation) {
-        final sheetData = data.copyWith(
-          onSecondaryTap: () {
-            onSnooze();
-            Navigator.of(dialogContext, rootNavigator: true).pop();
-          },
-          tertiaryLabel: config.showSkipVersion
-              ? (config.presentation.labels.skipVersion ?? 'Skip this version')
-              : null,
-          onTertiaryTap: config.showSkipVersion
-              ? () {
-                  onSkipVersion();
-                  Navigator.of(dialogContext, rootNavigator: true).pop();
-                }
-              : null,
-        );
-        final child = config.optionalUpdateWidget
-                ?.call(dialogContext, sheetData) ??
+        // Snooze/skip logic is already in data.onLaterClick / data.onSkipClick;
+        // dismissOnLaterClick and dismissOnSkipClick (both true by default)
+        // cause the sheet widget to pop after calling the callback.
+        final child = config.optionalUpdateWidget?.call(dialogContext, data) ??
             _DefaultUpdateSheet(
-              data: sheetData,
+              data: data,
               theme: config.presentation.theme,
               iconBuilder: config.presentation.iconBuilder,
               alignment: config.presentation.contentAlignment ??
@@ -1286,13 +1317,34 @@ class _DefaultUpdatePanel extends StatelessWidget {
     );
   }
 
-  Widget _buildActions() {
+  Widget _buildActions(BuildContext context) {
+    void handlePrimary() {
+      data.onUpdateClick?.call();
+      if (data.dismissOnUpdateClick) {
+        Navigator.of(context, rootNavigator: true).maybePop();
+      }
+    }
+
+    void handleSecondary() {
+      data.onLaterClick?.call();
+      if (data.dismissOnLaterClick) {
+        Navigator.of(context, rootNavigator: true).maybePop();
+      }
+    }
+
+    void handleTertiary() {
+      data.onSkipClick?.call();
+      if (data.dismissOnSkipClick) {
+        Navigator.of(context, rootNavigator: true).maybePop();
+      }
+    }
+
     final actionRow = Row(
       children: [
-        if (data.secondaryLabel != null && data.onSecondaryTap != null)
+        if (data.secondaryLabel != null && data.onLaterClick != null)
           Expanded(
             child: OutlinedButton(
-              onPressed: data.onSecondaryTap,
+              onPressed: handleSecondary,
               style: OutlinedButton.styleFrom(
                 foregroundColor: theme.contentColor,
                 side: BorderSide(color: theme.outlineColor),
@@ -1306,13 +1358,13 @@ class _DefaultUpdatePanel extends StatelessWidget {
             ),
           ),
         if (data.secondaryLabel != null &&
-            data.onSecondaryTap != null &&
-            data.onPrimaryTap != null)
+            data.onLaterClick != null &&
+            data.onUpdateClick != null)
           const SizedBox(width: 12),
-        if (data.onPrimaryTap != null)
+        if (data.onUpdateClick != null)
           Expanded(
             child: FilledButton(
-              onPressed: data.onPrimaryTap,
+              onPressed: handlePrimary,
               style: FilledButton.styleFrom(
                 backgroundColor: theme.accentColor,
                 foregroundColor: theme.accentForegroundColor,
@@ -1328,7 +1380,7 @@ class _DefaultUpdatePanel extends StatelessWidget {
       ],
     );
 
-    if (data.tertiaryLabel != null && data.onTertiaryTap != null) {
+    if (data.tertiaryLabel != null && data.onSkipClick != null) {
       return Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -1337,7 +1389,7 @@ class _DefaultUpdatePanel extends StatelessWidget {
             padding: const EdgeInsets.only(top: 8),
             child: Center(
               child: TextButton(
-                onPressed: data.onTertiaryTap,
+                onPressed: handleTertiary,
                 style: TextButton.styleFrom(
                   foregroundColor: theme.contentColor.withValues(alpha: 0.6),
                   textStyle: typography.secondaryButtonStyle,
@@ -1368,7 +1420,7 @@ class _DefaultUpdatePanel extends StatelessWidget {
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-            child: _buildActions(),
+            child: _buildActions(context),
           ),
           if (extraBottomPadding > 0) SizedBox(height: extraBottomPadding),
         ],
@@ -1383,7 +1435,7 @@ class _DefaultUpdatePanel extends StatelessWidget {
         children: [
           _buildContent(context),
           const SizedBox(height: 20),
-          _buildActions(),
+          _buildActions(context),
         ],
       ),
     );
@@ -1652,11 +1704,11 @@ class _ShorebirdPatchPanelState extends State<_ShorebirdPatchPanel> {
       state: widget.state,
       isBlocking: false,
       primaryLabel: widget.applyLabel,
-      onPrimaryTap: _isApplying ? null : _onApplyTap,
+      onUpdateClick: _isApplying ? null : _onApplyTap,
+      // _onApplyTap handles its own navigation, so don't double-pop.
+      dismissOnUpdateClick: false,
       secondaryLabel: widget.laterLabel,
-      onSecondaryTap: _isApplying
-          ? null
-          : () => Navigator.of(context, rootNavigator: true).maybePop(),
+      onLaterClick: _isApplying ? null : () {},
     );
 
     if (widget.customWidget != null) {

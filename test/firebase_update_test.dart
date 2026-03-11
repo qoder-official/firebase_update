@@ -283,8 +283,7 @@ void main() {
     expect(labels.applyPatch, 'Apply now');
   });
 
-  test(
-      'FirebaseUpdatePresentationData supports tertiaryLabel and onTertiaryTap',
+  test('FirebaseUpdatePresentationData supports tertiaryLabel and onSkipClick',
       () {
     var tapped = false;
     final data = FirebaseUpdatePresentationData(
@@ -292,14 +291,28 @@ void main() {
       state: const FirebaseUpdateState.idle(),
       isBlocking: false,
       primaryLabel: 'Primary',
-      onPrimaryTap: () {},
+      onUpdateClick: () {},
       tertiaryLabel: 'Skip this version',
-      onTertiaryTap: () => tapped = true,
+      onSkipClick: () => tapped = true,
     );
 
     expect(data.tertiaryLabel, 'Skip this version');
-    data.onTertiaryTap?.call();
+    data.onSkipClick?.call();
     expect(tapped, isTrue);
+  });
+
+  test('FirebaseUpdatePresentationData dismiss booleans default to true', () {
+    final data = FirebaseUpdatePresentationData(
+      title: 'Test',
+      state: const FirebaseUpdateState.idle(),
+      isBlocking: false,
+      primaryLabel: 'Primary',
+      onUpdateClick: () {},
+    );
+
+    expect(data.dismissOnUpdateClick, isTrue);
+    expect(data.dismissOnLaterClick, isTrue);
+    expect(data.dismissOnSkipClick, isTrue);
   });
 
   test('FirebaseUpdatePresentationData.copyWith preserves tertiaryLabel', () {
@@ -309,14 +322,14 @@ void main() {
       state: const FirebaseUpdateState.idle(),
       isBlocking: false,
       primaryLabel: 'Primary',
-      onPrimaryTap: () {},
+      onUpdateClick: () {},
       tertiaryLabel: 'Skip',
-      onTertiaryTap: () => tapped = true,
+      onSkipClick: () => tapped = true,
     );
 
     final copied = original.copyWith(title: 'Updated title');
     expect(copied.tertiaryLabel, 'Skip');
-    copied.onTertiaryTap?.call();
+    copied.onSkipClick?.call();
     expect(tapped, isTrue);
   });
 }

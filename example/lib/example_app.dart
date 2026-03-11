@@ -34,6 +34,8 @@ class ExampleAppKeys {
       ValueKey<String>('simulator-maintenance-dialog');
   static const maintenanceBottomSheetButton =
       ValueKey<String>('simulator-maintenance-sheet');
+  static const optionalUpdateSnoozeButton =
+      ValueKey<String>('simulator-optional-update-snooze');
 }
 
 // ---------------------------------------------------------------------------
@@ -50,6 +52,8 @@ Future<void> initializeExampleFirebaseUpdate({
   bool useBottomSheetForForceUpdate = false,
   bool useBottomSheetForMaintenance = false,
   String currentVersion = '2.4.0',
+  Duration? snoozeDuration,
+  FirebaseUpdateLabels? labels,
 }) async {
   if (initializeFirebase) {
     await Firebase.initializeApp(
@@ -66,6 +70,10 @@ Future<void> initializeExampleFirebaseUpdate({
       useBottomSheetForOptionalUpdate: useBottomSheetForOptionalUpdate,
       useBottomSheetForForceUpdate: useBottomSheetForForceUpdate,
       useBottomSheetForMaintenance: useBottomSheetForMaintenance,
+      snoozeDuration: snoozeDuration,
+      presentation: labels != null
+          ? FirebaseUpdatePresentation(labels: labels)
+          : const FirebaseUpdatePresentation(),
     ),
   );
 }
@@ -345,6 +353,27 @@ class _SimulatorPanel extends StatelessWidget {
             });
           },
           child: const Text('Maintenance (sheet)'),
+        ),
+        OutlinedButton(
+          key: ExampleAppKeys.optionalUpdateSnoozeButton,
+          onPressed: () async {
+            // Re-initialize with a 10 s snooze so you can tap "Later (10s)"
+            // and watch the dialog re-appear automatically without restarting.
+            await initializeExampleFirebaseUpdate(
+              initializeFirebase: false,
+              useBottomSheetForOptionalUpdate: false,
+              snoozeDuration: const Duration(seconds: 10),
+              labels: const FirebaseUpdateLabels(later: 'Later (10s)'),
+            );
+            await FirebaseUpdate.instance.applyPayload({
+              'min_version': '2.0.0',
+              'latest_version': '2.6.0',
+              'optional_update_title': 'Update available',
+              'optional_update_message':
+                  'Tap "Later (10s)" — the dialog comes back in 10 seconds!',
+            });
+          },
+          child: const Text('Optional (snooze 10s)'),
         ),
       ],
     );
