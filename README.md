@@ -11,17 +11,19 @@ One package to handle forced updates, optional updates, maintenance mode, and pa
 
 ---
 
-## Screenshots
+## Index
 
-| Home | Optional update dialog |
-|---|---|
-| ![Home screen](screenshots/home_screen.png) | ![Optional update dialog](screenshots/optional_update_dialog.png) |
-| Optional update sheet | Force update dialog |
-| ![Optional update sheet](screenshots/optional_update_sheet.png) | ![Force update dialog](screenshots/force_update_dialog.png) |
-| Force update sheet | Maintenance dialog |
-| ![Force update sheet](screenshots/force_update_sheet.png) | ![Maintenance dialog](screenshots/maintenance_dialog.png) |
-| Maintenance sheet | Patch notes expanded |
-| ![Maintenance sheet](screenshots/maintenance_sheet.png) | ![Expanded patch notes](screenshots/patch_notes_expanded.png) |
+- [Features](#features)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Remote Config Schema](#remote-config-schema)
+- [Payload Examples](#payload-examples)
+- [Update States](#update-states)
+- [Configuration](#configuration)
+- [Custom UI](#custom-ui)
+- [Reactive Widget](#reactive-widget)
+- [API Reference](#api-reference)
+- [Testing](#testing)
 
 ---
 
@@ -114,6 +116,60 @@ Create a parameter named `firebase_update_config` in the Firebase console (or us
 | `patch_notes_format` | string | `"text"` (default) or `"html"`. |
 
 **Priority:** maintenance (if `maintenance_message` is non-empty) → force update (if `current < min_version`) → optional update (if `current < latest_version`). Only one surface is shown at a time; the package dismisses the previous modal before showing a new one.
+
+---
+
+## Payload Examples
+
+These are the three default states most teams care about first. The screenshots below were generated from [`scripts/take_screenshots.sh`](/Volumes/Development/Projects/flutter/Qoder/firebase_update/scripts/take_screenshots.sh), so the README reflects the actual packaged UI.
+
+### Optional Update
+
+Use this when you want to encourage upgrades without blocking the app.
+
+```json
+{
+  "min_version": "2.0.0",
+  "latest_version": "2.6.0",
+  "optional_update_title": "Update available",
+  "optional_update_message": "Version 2.6.0 is ready with a smoother experience.",
+  "patch_notes": "Faster startup · Cleaner onboarding · Bug fixes.",
+  "patch_notes_format": "text"
+}
+```
+
+![Optional update dialog](screenshots/optional_update_dialog.png)
+
+### Force Update
+
+Use this when the installed app version is no longer safe or compatible.
+
+```json
+{
+  "min_version": "2.5.0",
+  "latest_version": "2.6.0",
+  "force_update_message": "This release contains required security fixes.",
+  "patch_notes": "<ul><li>Critical security patches</li><li>Required backend compatibility</li></ul>",
+  "patch_notes_format": "html"
+}
+```
+
+![Force update dialog](screenshots/force_update_dialog.png)
+
+### Maintenance Mode
+
+Use this when you need to temporarily gate the app without shipping a new build.
+
+```json
+{
+  "maintenance_title": "Scheduled maintenance",
+  "maintenance_message": "We're upgrading our servers. We'll be back shortly."
+}
+```
+
+![Maintenance dialog](screenshots/maintenance_dialog.png)
+
+If you want to go beyond the defaults, the next sections cover state handling, presentation controls, and fully custom surfaces.
 
 ---
 
