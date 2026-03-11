@@ -138,7 +138,7 @@ Use this when you want to encourage upgrades without blocking the app.
 }
 ```
 
-![Optional update dialog](screenshots/optional_update_dialog.png)
+<img src="screenshots/optional_update_dialog.png" alt="Optional update dialog" width="320" />
 
 ### Force Update
 
@@ -154,7 +154,7 @@ Use this when the installed app version is no longer safe or compatible.
 }
 ```
 
-![Force update dialog](screenshots/force_update_dialog.png)
+<img src="screenshots/force_update_dialog.png" alt="Force update dialog" width="320" />
 
 ### Maintenance Mode
 
@@ -167,7 +167,7 @@ Use this when you need to temporarily gate the app without shipping a new build.
 }
 ```
 
-![Maintenance dialog](screenshots/maintenance_dialog.png)
+<img src="screenshots/maintenance_dialog.png" alt="Maintenance dialog" width="320" />
 
 If you want to go beyond the defaults, the next sections cover state handling, presentation controls, and fully custom surfaces.
 
