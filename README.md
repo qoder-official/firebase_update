@@ -138,7 +138,10 @@ Use this when you want to encourage upgrades without blocking the app.
 }
 ```
 
-<img src="screenshots/optional_update_dialog.png" alt="Optional update dialog" width="320" />
+<p>
+  <img src="screenshots/optional_update_dialog.png" alt="Optional update dialog" width="260" />
+  <img src="screenshots/optional_update_sheet.png" alt="Optional update sheet" width="260" />
+</p>
 
 ### Force Update
 
@@ -154,7 +157,10 @@ Use this when the installed app version is no longer safe or compatible.
 }
 ```
 
-<img src="screenshots/force_update_dialog.png" alt="Force update dialog" width="320" />
+<p>
+  <img src="screenshots/force_update_dialog.png" alt="Force update dialog" width="260" />
+  <img src="screenshots/force_update_sheet.png" alt="Force update sheet" width="260" />
+</p>
 
 ### Maintenance Mode
 
