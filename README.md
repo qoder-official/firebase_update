@@ -277,25 +277,161 @@ FirebaseUpdateBuilder(
 
 ## API Reference
 
+### `FirebaseUpdate`
+
+The singleton controller exposed as `FirebaseUpdate.instance`.
+
 ```dart
-// Initialize once at app startup
 await FirebaseUpdate.instance.initialize(
   navigatorKey: navigatorKey,
   config: config,
 );
-
-// Force an immediate Remote Config fetch and re-evaluate state
-await FirebaseUpdate.instance.checkNow();
-
-// Current state (synchronous)
-FirebaseUpdateState state = FirebaseUpdate.instance.currentState;
-
-// Reactive stream of state changes
-Stream<FirebaseUpdateState> stream = FirebaseUpdate.instance.stream;
-
-// Apply a raw payload manually (useful for testing or custom sources)
-await FirebaseUpdate.instance.applyPayload({'min_version': '2.0.0', ...});
 ```
+
+Key members:
+
+| Member | Type | What it does |
+|---|---|---|
+| `initialize({required navigatorKey, required config})` | `Future<void>` | Boots the package, fetches Remote Config, restores skip/snooze state, and starts real-time listening when enabled. |
+| `checkNow()` | `Future<void>` | Forces an immediate Remote Config fetch and re-evaluates the current state. |
+| `applyPayload(Map<String, dynamic>? rawPayload, {String? currentVersion})` | `Future<FirebaseUpdateState>` | Resolves state from a raw payload without going through Firebase. Useful for tests and custom sources. |
+| `stream` | `Stream<FirebaseUpdateState>` | Broadcast stream of update-state changes. |
+| `currentState` | `FirebaseUpdateState` | Last resolved state, synchronously readable. |
+| `navigatorKey` | `GlobalKey<NavigatorState>?` | Navigator key registered during initialization. |
+| `config` | `FirebaseUpdateConfig?` | Active config object currently in use. |
+| `snoozeOptionalUpdate([duration])` | `Future<void>` | Snoozes an optional update using the passed duration or `config.snoozeDuration`. |
+| `dismissOptionalUpdateForSession()` | `void` | Hides the current optional prompt only for the current app session. |
+| `skipVersion(version)` | `Future<void>` | Permanently skips prompts for one specific version. |
+| `clearSnooze()` | `Future<void>` | Clears any persisted snooze window. |
+| `clearSkippedVersion()` | `Future<void>` | Clears any persisted skipped version. |
+
+### `FirebaseUpdateState`
+
+Resolved state emitted by the package.
+
+| Property | Type | Notes |
+|---|---|---|
+| `kind` | `FirebaseUpdateKind` | `idle`, `upToDate`, `optionalUpdate`, `forceUpdate`, `maintenance`, `shorebirdPatch` |
+| `isInitialized` | `bool` | `true` after `initialize()` has completed |
+| `title` | `String?` | Resolved title used for default presentation |
+| `message` | `String?` | Resolved message body |
+| `currentVersion` | `String?` | Current app version |
+| `minimumVersion` | `String?` | Required minimum version |
+| `latestVersion` | `String?` | Latest available version |
+| `patchNotes` | `String?` | Raw patch notes content |
+| `patchNotesFormat` | `FirebaseUpdatePatchNotesFormat` | `plainText` or `html` |
+| `maintenanceTitle` | `String?` | Maintenance title from payload |
+| `maintenanceMessage` | `String?` | Maintenance message from payload |
+| `storeUrls` | `FirebaseUpdateStoreUrls?` | Store URLs from Remote Config payload |
+| `isBlocking` | `bool` | Convenience getter for force update and maintenance |
+
+### `FirebaseUpdateConfig`
+
+Main configuration object passed to `initialize()`.
+
+Core setup:
+
+| Property | Type | Purpose |
+|---|---|---|
+| `remoteConfigKey` | `String` | Remote Config parameter key. Default: `firebase_update_config` |
+| `currentVersion` | `String?` | Manual version override |
+| `packageName` | `String?` | Manual app identifier override for store launch |
+| `fallbackStoreUrls` | `FirebaseUpdateStoreUrls` | Per-platform store fallback URLs |
+| `fetchTimeout` | `Duration` | Remote Config fetch timeout |
+| `minimumFetchInterval` | `Duration` | Remote Config fetch throttle interval |
+| `listenToRealtimeUpdates` | `bool` | Enables real-time RC subscription |
+| `enableDefaultPresentation` | `bool` | Turns package-managed dialogs/sheets on or off |
+
+Presentation control:
+
+| Property | Type | Purpose |
+|---|---|---|
+| `useBottomSheetForOptionalUpdate` | `bool?` | Optional update as sheet instead of dialog |
+| `useBottomSheetForForceUpdate` | `bool` | Force update as sheet |
+| `useBottomSheetForMaintenance` | `bool` | Maintenance as sheet |
+| `presentation` | `FirebaseUpdatePresentation` | Theme, labels, typography, alignment, icon builder |
+| `forceUpdateWidget` | `FirebaseUpdateViewBuilder?` | Replaces default force UI |
+| `optionalUpdateWidget` | `FirebaseUpdateViewBuilder?` | Replaces default optional UI |
+| `maintenanceWidget` | `FirebaseUpdateViewBuilder?` | Replaces default maintenance UI |
+| `shorebirdPatchWidget` | `FirebaseUpdateViewBuilder?` | Replaces default patch-ready UI |
+
+Behavior and hooks:
+
+| Property | Type | Purpose |
+|---|---|---|
+| `onStoreLaunch` | `VoidCallback?` | Fully overrides default store-launch behavior |
+| `onForceUpdateTap` | `VoidCallback?` | Analytics or side effects for force CTA |
+| `onOptionalUpdateTap` | `VoidCallback?` | Analytics or side effects for optional CTA |
+| `onOptionalLaterTap` | `VoidCallback?` | Analytics or side effects for dismiss CTA |
+| `onDialogShown` | `void Function(FirebaseUpdateState)?` | Fires when package UI is presented |
+| `onDialogDismissed` | `void Function(FirebaseUpdateState)?` | Fires when package UI is dismissed |
+| `onSnoozed` | `void Function(String, Duration)?` | Fires when optional prompt is snoozed |
+| `onVersionSkipped` | `void Function(String)?` | Fires when a version is skipped |
+| `allowedFlavors` | `List<String>?` | Whitelist build flavors using `--dart-define=FLAVOR=...` |
+| `showSkipVersion` | `bool` | Shows “Skip this version” on optional prompts |
+| `snoozeDuration` | `Duration?` | Default snooze duration |
+| `preferencesStore` | `FirebaseUpdatePreferencesStore?` | Custom persistence backend for skip/snooze |
+
+Patch support:
+
+| Property | Type | Purpose |
+|---|---|---|
+| `patchSource` | `FirebaseUpdatePatchSource?` | Integrates Shorebird or another patch provider |
+| `onPatchApplied` | `VoidCallback?` | Called after a patch has been applied |
+
+### `FirebaseUpdatePresentation`
+
+Controls the built-in UI system.
+
+| Member | Type | Purpose |
+|---|---|---|
+| `useBottomSheetForOptionalUpdate` | `bool` | Global default for optional updates |
+| `contentAlignment` | `FirebaseUpdateContentAlignment?` | Aligns icon, title, and body |
+| `patchNotesAlignment` | `FirebaseUpdateContentAlignment?` | Aligns the patch notes block independently |
+| `typography` | `FirebaseUpdateTypography` | Fine-grained text-style overrides |
+| `labels` | `FirebaseUpdateLabels` | Override every static string in the default UI |
+| `theme` | `FirebaseUpdatePresentationTheme` | Colors, border radius, blur, gradient, layout tokens |
+| `iconBuilder` | `FirebaseUpdateIconBuilder?` | Replaces the default top icon |
+
+Supporting presentation objects:
+
+| Object | What it controls |
+|---|---|
+| `FirebaseUpdatePresentationTheme` | Accent colors, surface colors, outline, barrier, blur, gradients, radii, max dialog width |
+| `FirebaseUpdateTypography` | Title, body, release-notes, read-more, and button text styles |
+| `FirebaseUpdateLabels` | Titles, CTA text, release-notes labels, skip-version text, patch-ready copy |
+| `FirebaseUpdateContentAlignment` | `start`, `center`, `end` |
+
+### Widgets
+
+| Widget | Purpose |
+|---|---|
+| `FirebaseUpdateBuilder` | Rebuilds on every `FirebaseUpdateState` change so you can render custom inline UI |
+| `FirebaseUpdateCard` | Ready-made inline card for optional update, force update, maintenance, and patch states |
+
+Example:
+
+```dart
+FirebaseUpdateBuilder(
+  builder: (context, state) {
+    if (state.kind == FirebaseUpdateKind.optionalUpdate) {
+      return FirebaseUpdateCard();
+    }
+    return const SizedBox.shrink();
+  },
+)
+```
+
+### Supporting Types
+
+| Type | Purpose |
+|---|---|
+| `FirebaseUpdateKind` | Enum for `idle`, `upToDate`, `optionalUpdate`, `forceUpdate`, `maintenance`, `shorebirdPatch` |
+| `FirebaseUpdatePatchNotesFormat` | Enum for `plainText` and `html` patch notes rendering |
+| `FirebaseUpdateStoreUrls` | Per-platform fallback URLs: `android`, `ios`, `macos`, `windows`, `linux`, `web` |
+| `FirebaseUpdatePatchSource` | Interface for code-push patch providers such as Shorebird |
+| `FirebaseUpdatePreferencesStore` | Interface for skip/snooze persistence |
+| `SharedPreferencesFirebaseUpdateStore` | Default `shared_preferences` implementation of the persistence store |
 
 ---
 
