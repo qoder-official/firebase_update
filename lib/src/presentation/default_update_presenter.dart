@@ -1111,18 +1111,24 @@ class _DefaultUpdateSheet extends StatelessWidget {
                       borderRadius: BorderRadius.circular(999),
                     ),
                   ),
-                  _DefaultUpdatePanel(
-                    data: data,
-                    theme: visualTheme,
-                    alignment: alignment,
-                    notesAlignment: notesAlignment,
-                    typography: typography,
-                    releaseNotesHeading: releaseNotesHeading,
-                    readMoreLabel: readMoreLabel,
-                    showLessLabel: showLessLabel,
-                    iconBuilder: iconBuilder,
-                    scrollable: true,
-                    extraBottomPadding: bottomInset,
+                  // Flexible allows the panel to fill up to the ConstrainedBox
+                  // cap (85 % of screen height) so that when "Read more"
+                  // expands the patch notes the SingleChildScrollView inside
+                  // the panel scrolls instead of overflowing.
+                  Flexible(
+                    child: _DefaultUpdatePanel(
+                      data: data,
+                      theme: visualTheme,
+                      alignment: alignment,
+                      notesAlignment: notesAlignment,
+                      typography: typography,
+                      releaseNotesHeading: releaseNotesHeading,
+                      readMoreLabel: readMoreLabel,
+                      showLessLabel: showLessLabel,
+                      iconBuilder: iconBuilder,
+                      scrollable: true,
+                      extraBottomPadding: bottomInset,
+                    ),
                   ),
                 ],
               ),
