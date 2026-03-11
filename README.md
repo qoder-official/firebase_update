@@ -11,21 +11,17 @@ One package to handle forced updates, optional updates, maintenance mode, and pa
 
 ---
 
-## Why firebase_update?
+## Screenshots
 
-Most Flutter update packages scrape the App Store listing or wrap a platform API — they tell you *what version is available*, but they can't tell your app *what to do about it* in real time.
-
-| | firebase_update | upgrader | in_app_update | new_version_plus |
-|---|:---:|:---:|:---:|:---:|
-| Server-side update control | ✅ | ✗ | ✗ | ✗ |
-| Maintenance / kill switch | ✅ | ✗ | ✗ | ✗ |
-| Real-time propagation (no restart) | ✅ | ✗ | ✗ | ✗ |
-| Patch notes alongside prompt | ✅ | ✗ | ✗ | ✗ |
-| Fully custom UI builders | ✅ | partial | ✗ | ✗ |
-| iOS + Android | ✅ | ✅ | Android only | ✅ |
-| Works without store listing | ✅ | ✗ | ✗ | ✗ |
-
-> You already have Firebase. Now get update control for free.
+| Home | Optional update dialog |
+|---|---|
+| ![Home screen](screenshots/home_screen.png) | ![Optional update dialog](screenshots/optional_update_dialog.png) |
+| Optional update sheet | Force update dialog |
+| ![Optional update sheet](screenshots/optional_update_sheet.png) | ![Force update dialog](screenshots/force_update_dialog.png) |
+| Force update sheet | Maintenance dialog |
+| ![Force update sheet](screenshots/force_update_sheet.png) | ![Maintenance dialog](screenshots/maintenance_dialog.png) |
+| Maintenance sheet | Patch notes expanded |
+| ![Maintenance sheet](screenshots/maintenance_sheet.png) | ![Expanded patch notes](screenshots/patch_notes_expanded.png) |
 
 ---
 

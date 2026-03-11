@@ -912,6 +912,152 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
+  // Analytics callbacks
+  // ---------------------------------------------------------------------------
+
+  testWidgets('onDialogShown fires when optional update dialog appears',
+      (tester) async {
+    final shown = <FirebaseUpdateState>[];
+    final navigatorKey = GlobalKey<NavigatorState>();
+    await _init(
+      tester,
+      navigatorKey: navigatorKey,
+      config: FirebaseUpdateConfig(
+        currentVersion: '2.4.0',
+        onDialogShown: shown.add,
+        preferencesStore: store,
+      ),
+    );
+
+    await _showOptionalUpdate(tester);
+
+    expect(shown, hasLength(1));
+    expect(shown.first.kind, FirebaseUpdateKind.optionalUpdate);
+  });
+
+  testWidgets('onDialogDismissed fires after optional update dialog closes',
+      (tester) async {
+    final dismissed = <FirebaseUpdateState>[];
+    final navigatorKey = GlobalKey<NavigatorState>();
+    await _init(
+      tester,
+      navigatorKey: navigatorKey,
+      config: FirebaseUpdateConfig(
+        currentVersion: '2.4.0',
+        onDialogDismissed: dismissed.add,
+        preferencesStore: store,
+      ),
+    );
+
+    await _showOptionalUpdate(tester);
+    expect(dismissed, isEmpty); // not dismissed yet
+
+    await tester.tap(find.text('Later'));
+    await tester.pumpAndSettle();
+
+    expect(dismissed, hasLength(1));
+    expect(dismissed.first.kind, FirebaseUpdateKind.optionalUpdate);
+  });
+
+  testWidgets('onDialogShown fires when force update dialog appears',
+      (tester) async {
+    final shown = <FirebaseUpdateState>[];
+    final navigatorKey = GlobalKey<NavigatorState>();
+    await _init(
+      tester,
+      navigatorKey: navigatorKey,
+      config: FirebaseUpdateConfig(
+        currentVersion: '2.4.0',
+        onDialogShown: shown.add,
+        onStoreLaunch: () {},
+        preferencesStore: store,
+      ),
+    );
+
+    await FirebaseUpdate.instance.applyPayload({
+      'min_version': '2.5.0',
+      'latest_version': '2.6.0',
+    });
+    await tester.pumpAndSettle();
+    expect(find.text('Update required'), findsOneWidget);
+
+    expect(shown, hasLength(1));
+    expect(shown.first.kind, FirebaseUpdateKind.forceUpdate);
+  });
+
+  testWidgets('onSnoozed fires with version and duration when Later is tapped',
+      (tester) async {
+    final snoozed = <(String, Duration)>[];
+    final navigatorKey = GlobalKey<NavigatorState>();
+    final now = DateTime(2024, 1, 1);
+    await _init(
+      tester,
+      navigatorKey: navigatorKey,
+      config: FirebaseUpdateConfig(
+        currentVersion: '2.4.0',
+        snoozeDuration: const Duration(hours: 24),
+        onSnoozed: (v, d) => snoozed.add((v, d)),
+        preferencesStore: store,
+      ),
+    );
+    // Inject a fixed clock so the real-time snooze timer is suppressed.
+    FirebaseUpdate.instance.debugSetClock(() => now);
+
+    await _showOptionalUpdate(tester);
+    await tester.tap(find.text('Later'));
+    await tester.pumpAndSettle();
+
+    expect(snoozed, hasLength(1));
+    expect(snoozed.first.$1, '2.6.0');
+    expect(snoozed.first.$2, const Duration(hours: 24));
+  });
+
+  testWidgets(
+      'onSnoozed does not fire when Later is tapped without snoozeDuration',
+      (tester) async {
+    final snoozed = <(String, Duration)>[];
+    final navigatorKey = GlobalKey<NavigatorState>();
+    await _init(
+      tester,
+      navigatorKey: navigatorKey,
+      config: FirebaseUpdateConfig(
+        currentVersion: '2.4.0',
+        onSnoozed: (v, d) => snoozed.add((v, d)),
+        preferencesStore: store,
+      ),
+    );
+
+    await _showOptionalUpdate(tester);
+    await tester.tap(find.text('Later'));
+    await tester.pumpAndSettle();
+
+    expect(snoozed, isEmpty);
+  });
+
+  testWidgets('onVersionSkipped fires with version when Skip is tapped',
+      (tester) async {
+    final skipped = <String>[];
+    final navigatorKey = GlobalKey<NavigatorState>();
+    await _init(
+      tester,
+      navigatorKey: navigatorKey,
+      config: FirebaseUpdateConfig(
+        currentVersion: '2.4.0',
+        showSkipVersion: true,
+        onVersionSkipped: skipped.add,
+        preferencesStore: store,
+      ),
+    );
+
+    await _showOptionalUpdate(tester);
+    await tester.tap(find.text('Skip this version'));
+    await tester.pumpAndSettle();
+
+    expect(skipped, hasLength(1));
+    expect(skipped.first, '2.6.0');
+  });
+
+  // ---------------------------------------------------------------------------
   // Shorebird patch source
   // ---------------------------------------------------------------------------
 

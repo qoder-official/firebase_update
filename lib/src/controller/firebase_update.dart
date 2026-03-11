@@ -114,10 +114,12 @@ class FirebaseUpdate {
     }
 
     await _refreshFromRemoteConfig(config);
-    _payloadSubscription =
-        _remoteConfigPayloadSource.watchPayload(config).listen((payload) {
-      _emit(_resolve(config: config, rawPayload: payload));
-    });
+    if (config.listenToRealtimeUpdates) {
+      _payloadSubscription =
+          _remoteConfigPayloadSource.watchPayload(config).listen((payload) {
+        _emit(_resolve(config: config, rawPayload: payload));
+      });
+    }
   }
 
   /// Triggers an immediate Remote Config fetch and emits the resolved state.
@@ -259,10 +261,27 @@ class FirebaseUpdate {
     _emit(const FirebaseUpdateState.idle());
   }
 
+  /// Returns `true` when [FirebaseUpdateConfig.allowedFlavors] is set and the
+  /// current build flavor (`String.fromEnvironment('FLAVOR')`) is not in the
+  /// list.  Pure Dart — no additional dependencies.
+  bool _isFlavourBlocked(FirebaseUpdateConfig config) {
+    final allowed = config.allowedFlavors;
+    if (allowed == null) return false;
+    const flavor = String.fromEnvironment('FLAVOR');
+    return !allowed.contains(flavor);
+  }
+
   void _emit(FirebaseUpdateState state) {
+    // When an allowed-flavors whitelist is configured and the current flavor
+    // is not on the list, stay idle — no UI, no state propagation.
+    final config = _config;
+    if (config != null && _isFlavourBlocked(config)) {
+      _currentState = const FirebaseUpdateState.idle();
+      _controller.add(_currentState);
+      return;
+    }
     _currentState = state;
     _controller.add(state);
-    final config = _config;
     if (config != null) {
       _defaultUpdatePresenter.presentIfNeeded(
         state: state,

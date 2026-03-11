@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
+import '../models/firebase_update_state.dart';
 import '../presentation/firebase_update_presentation.dart';
 import '../services/firebase_update_patch_source.dart';
 import '../services/firebase_update_preferences_store.dart';
@@ -51,6 +52,11 @@ class FirebaseUpdateConfig {
     this.onForceUpdateTap,
     this.onOptionalUpdateTap,
     this.onOptionalLaterTap,
+    this.onDialogShown,
+    this.onDialogDismissed,
+    this.onSnoozed,
+    this.onVersionSkipped,
+    this.allowedFlavors,
     this.showSkipVersion = false,
     this.snoozeDuration,
     this.patchSource,
@@ -173,6 +179,71 @@ class FirebaseUpdateConfig {
   ///
   /// Fires in addition to the default snooze behavior.
   final VoidCallback? onOptionalLaterTap;
+
+  // ---------------------------------------------------------------------------
+  // Analytics callbacks (zero new dependencies)
+  // ---------------------------------------------------------------------------
+
+  /// Called immediately after a dialog or bottom sheet is presented to the
+  /// user. Receives the [FirebaseUpdateState] that triggered the presentation.
+  ///
+  /// Use this to track impressions in Firebase Analytics, Mixpanel, Amplitude,
+  /// or any other analytics SDK. The package has no analytics dependency —
+  /// wire this to whichever SDK your app already uses.
+  ///
+  /// ```dart
+  /// onDialogShown: (state) {
+  ///   analytics.logEvent(name: 'update_dialog_shown',
+  ///       parameters: {'kind': state.kind.name});
+  /// },
+  /// ```
+  final void Function(FirebaseUpdateState state)? onDialogShown;
+
+  /// Called immediately after a dialog or bottom sheet is dismissed, whether
+  /// by user action or programmatically (e.g. server clears the update flag).
+  ///
+  /// Receives the [FirebaseUpdateState] that was active when the UI was shown.
+  final void Function(FirebaseUpdateState state)? onDialogDismissed;
+
+  /// Called when the user snoozes the optional-update prompt by tapping
+  /// "Later" while [snoozeDuration] is configured.
+  ///
+  /// Provides the version being offered and the snooze duration so you can
+  /// record both in your analytics backend.
+  final void Function(String version, Duration snoozeFor)? onSnoozed;
+
+  /// Called when the user permanently skips a version by tapping
+  /// "Skip this version" (requires [showSkipVersion] to be `true`).
+  ///
+  /// Provides the skipped version string.
+  final void Function(String version)? onVersionSkipped;
+
+  // ---------------------------------------------------------------------------
+  // Flavor whitelist
+  // ---------------------------------------------------------------------------
+
+  /// Restricts the package to specific build flavors.
+  ///
+  /// When non-null, the package reads `String.fromEnvironment('FLAVOR')` at
+  /// runtime and suppresses all UI and state emission if the current flavor is
+  /// not in this list. When `null` (the default), the package is always active
+  /// regardless of the build flavor.
+  ///
+  /// Use this to keep staging and development builds silent while production
+  /// builds receive update UI:
+  ///
+  /// ```dart
+  /// FirebaseUpdateConfig(
+  ///   allowedFlavors: ['production'],
+  /// )
+  /// ```
+  ///
+  /// Pass the flavor at build time:
+  ///
+  /// ```bash
+  /// flutter run --dart-define=FLAVOR=production
+  /// ```
+  final List<String>? allowedFlavors;
 
   // ---------------------------------------------------------------------------
   // Skip version

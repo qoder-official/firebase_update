@@ -1,3 +1,12 @@
+## 1.0.4
+
+- **Integration test screenshots**: Added `example/integration_test/screenshot_test.dart` — captures 8 UI states (optional dialog, optional sheet, force dialog, force sheet, maintenance dialog, maintenance sheet, patch notes expanded, home screen) via `flutter drive`. Added `scripts/take_screenshots.sh` to run screenshot capture against a connected device or simulator. Screenshots are saved to `screenshots/` at the package root and used as README assets
+- **Analytics callbacks** (zero new dependencies): Four new optional callbacks on `FirebaseUpdateConfig` — `onDialogShown(state)`, `onDialogDismissed(state)`, `onSnoozed(version, duration)`, `onVersionSkipped(version)`. Wire these to Firebase Analytics, Mixpanel, Amplitude, or any SDK your app already uses
+- **`FirebaseUpdateCard` inline widget**: New `FirebaseUpdateCard` widget using `FirebaseUpdateBuilder` internally. Renders nothing when state is `idle` or `upToDate`. Shows a styled tinted card for `optionalUpdate`, `forceUpdate`, `maintenance`, and `shorebirdPatch` states. Accepts optional `onUpdateTap` and `onLaterTap` overrides. Drop into settings screens, home feeds, or any scrollable layout
+- **`checkNow()` already existed** — no new API required. Wired `listenToRealtimeUpdates: false` properly: when set, the real-time RC subscription is not started and `checkNow()` is the only way to refresh state
+- **Desktop layout**: New `desktopMaxDialogWidth` (default `480`) on `FirebaseUpdatePresentationTheme`. On macOS, Windows, and Linux the dialog content is capped at this width so it doesn't stretch across wide monitors. Has no effect on mobile
+- **Allowed flavors whitelist**: New `allowedFlavors: List<String>?` on `FirebaseUpdateConfig`. Reads `String.fromEnvironment('FLAVOR')` at runtime — when set, all UI and state emission is suppressed if the current flavor is not in the list. Default `null` = always active. Pass `--dart-define=FLAVOR=production` at build time to activate
+
 ## 1.0.3
 
 - **Renamed presentation callbacks**: `FirebaseUpdatePresentationData` callbacks renamed from `onPrimaryTap`/`onSecondaryTap`/`onTertiaryTap` to `onUpdateClick`/`onLaterClick`/`onSkipClick` for clarity

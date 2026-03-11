@@ -241,6 +241,7 @@ class FirebaseUpdatePresentationTheme {
     this.sheetBorderRadius = const BorderRadius.vertical(
       top: Radius.circular(32),
     ),
+    this.desktopMaxDialogWidth = 480,
   });
 
   /// Color used for primary action buttons and accent elements.
@@ -286,6 +287,12 @@ class FirebaseUpdatePresentationTheme {
 
   /// Border radius applied to the bottom sheet container.
   final BorderRadiusGeometry sheetBorderRadius;
+
+  /// Maximum dialog width on desktop platforms (Windows, macOS, Linux).
+  ///
+  /// Dialogs on desktop are capped at this width so they don't stretch
+  /// across wide monitors. Defaults to 480. Has no effect on mobile.
+  final double desktopMaxDialogWidth;
 }
 
 /// Data provided to custom presentation builders.

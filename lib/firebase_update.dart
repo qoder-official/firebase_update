@@ -8,3 +8,4 @@ export 'src/presentation/firebase_update_presentation.dart';
 export 'src/services/firebase_update_patch_source.dart';
 export 'src/services/firebase_update_preferences_store.dart';
 export 'src/widgets/firebase_update_builder.dart';
+export 'src/widgets/firebase_update_card.dart';

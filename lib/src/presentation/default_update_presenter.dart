@@ -335,6 +335,7 @@ class DefaultUpdatePresenter {
         // any concurrent presentIfNeeded call runs, _isPresenting is already
         // true and the navigator has the overlay in its stack.
         _isPresenting = true;
+        config.onDialogShown?.call(state);
         switch (state.kind) {
           case FirebaseUpdateKind.optionalUpdate:
             await _presentOptionalUpdate(context, state, config);
@@ -352,6 +353,7 @@ class DefaultUpdatePresenter {
           case FirebaseUpdateKind.upToDate:
             break;
         }
+        config.onDialogDismissed?.call(state);
         _isPresenting = false;
       }),
     );
@@ -376,6 +378,7 @@ class DefaultUpdatePresenter {
           _snoozedUntil = until;
           _snoozedForVersion = versionBeingOffered;
           unawaited(_store?.setSnoozedUntil(until));
+          config.onSnoozed?.call(versionBeingOffered, snoozeDuration);
           // _lastNavigatorKey is guaranteed non-null here: presentIfNeeded
           // stores it before calling _presentOptionalUpdate.
           if (_lastNavigatorKey != null) {
@@ -397,6 +400,7 @@ class DefaultUpdatePresenter {
       if (versionBeingOffered != null) {
         _skippedVersion = versionBeingOffered;
         unawaited(_store?.setSkippedVersion(versionBeingOffered));
+        config.onVersionSkipped?.call(versionBeingOffered);
       }
     }
 
@@ -1005,16 +1009,23 @@ class _DefaultUpdateDialog extends StatelessWidget {
   final String showLessLabel;
   final FirebaseUpdateIconBuilder? iconBuilder;
 
+  static bool get _isDesktop =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.macOS ||
+          defaultTargetPlatform == TargetPlatform.windows ||
+          defaultTargetPlatform == TargetPlatform.linux);
+
   @override
   Widget build(BuildContext context) {
     final visualTheme = _ResolvedPresentationTheme.from(context, theme);
     final maxHeight = MediaQuery.sizeOf(context).height * 0.85;
+    final maxWidth = _isDesktop ? theme.desktopMaxDialogWidth : double.infinity;
 
     return Dialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       backgroundColor: Colors.transparent,
       child: ConstrainedBox(
-        constraints: BoxConstraints(maxHeight: maxHeight),
+        constraints: BoxConstraints(maxHeight: maxHeight, maxWidth: maxWidth),
         child: DecoratedBox(
           decoration: BoxDecoration(
             color: visualTheme.surfaceColor,
