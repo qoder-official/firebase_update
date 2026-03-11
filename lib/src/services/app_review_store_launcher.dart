@@ -9,7 +9,15 @@ class AppReviewStoreLauncher implements StoreLauncher {
 
   @override
   Future<bool> launch({String? packageName, String? fallbackUrl}) async {
-    // On Android, a packageName override lets us open a specific listing
+    // Priority 1: URL from Remote Config or fallbackStoreUrls config.
+    if (fallbackUrl != null && fallbackUrl.isNotEmpty) {
+      final uri = Uri.tryParse(fallbackUrl);
+      if (uri != null && await canLaunchUrl(uri)) {
+        return launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    }
+
+    // Priority 2: Android packageName override opens a specific listing
     // (e.g. production app from a staging build) via the market:// scheme.
     if (!kIsWeb &&
         defaultTargetPlatform == TargetPlatform.android &&
@@ -20,16 +28,13 @@ class AppReviewStoreLauncher implements StoreLauncher {
       }
     }
 
-    // Default: let app_review open the store listing for the running app
+    // Priority 3: Let app_review open the store listing for the running app
     // using its own package name / bundle identifier automatically.
     try {
       await AppReview.storeListing();
       return true;
     } catch (_) {
-      // Native launch failed — try the fallback URL.
-      final uri = Uri.tryParse(fallbackUrl ?? '');
-      if (uri == null) return false;
-      return launchUrl(uri, mode: LaunchMode.externalApplication);
+      return false;
     }
   }
 }

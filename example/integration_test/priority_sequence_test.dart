@@ -251,7 +251,8 @@ void main() {
       },
     );
 
-    testWidgets('force → optional: optional shows when force requirement drops', (
+    testWidgets('force → optional: optional shows when force requirement drops',
+        (
       tester,
     ) async {
       await _initAllDialogs();
@@ -329,7 +330,8 @@ void main() {
       _expectOnlyForce();
     });
 
-    testWidgets('optional sheet → maintenance sheet: only maintenance visible', (
+    testWidgets('optional sheet → maintenance sheet: only maintenance visible',
+        (
       tester,
     ) async {
       await _initAllSheets();

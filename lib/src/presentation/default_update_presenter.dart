@@ -16,7 +16,7 @@ import 'firebase_update_presentation.dart';
 
 class DefaultUpdatePresenter {
   DefaultUpdatePresenter({required StoreLauncher storeLauncher})
-    : _storeLauncher = storeLauncher;
+      : _storeLauncher = storeLauncher;
 
   final StoreLauncher _storeLauncher;
   FirebaseUpdateKind? _presentedKind;
@@ -154,8 +154,7 @@ class DefaultUpdatePresenter {
             Navigator.of(context, rootNavigator: true).pop();
           } else {
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              final lateContext =
-                  navigatorKey.currentContext ??
+              final lateContext = navigatorKey.currentContext ??
                   navigatorKey.currentState?.context;
               if (lateContext != null) {
                 Navigator.of(lateContext, rootNavigator: true).pop();
@@ -322,7 +321,7 @@ class DefaultUpdatePresenter {
         _launchStore(
           context,
           packageName: config.packageName,
-          fallbackUrl: _resolveStoreUrl(config),
+          fallbackUrl: _resolveStoreUrl(config, state),
           override: config.onStoreLaunch,
         );
       },
@@ -370,25 +369,23 @@ class DefaultUpdatePresenter {
             sigma: config.presentation.theme.dialogBackgroundBlurSigma,
             child:
                 config.optionalUpdateWidget?.call(dialogContext, dialogData) ??
-                _DefaultUpdateDialog(
-                  data: dialogData,
-                  theme: config.presentation.theme,
-                  iconBuilder: config.presentation.iconBuilder,
-                  alignment:
-                      config.presentation.contentAlignment ??
-                      FirebaseUpdateContentAlignment.center,
-                  notesAlignment:
-                      config.presentation.patchNotesAlignment ??
-                      FirebaseUpdateContentAlignment.start,
-                  typography: config.presentation.typography,
-                  releaseNotesHeading:
-                      config.presentation.labels.releaseNotesHeading ??
-                      'Release notes',
-                  readMoreLabel:
-                      config.presentation.labels.readMore ?? 'Read more',
-                  showLessLabel:
-                      config.presentation.labels.showLess ?? 'Show less',
-                ),
+                    _DefaultUpdateDialog(
+                      data: dialogData,
+                      theme: config.presentation.theme,
+                      iconBuilder: config.presentation.iconBuilder,
+                      alignment: config.presentation.contentAlignment ??
+                          FirebaseUpdateContentAlignment.center,
+                      notesAlignment: config.presentation.patchNotesAlignment ??
+                          FirebaseUpdateContentAlignment.start,
+                      typography: config.presentation.typography,
+                      releaseNotesHeading:
+                          config.presentation.labels.releaseNotesHeading ??
+                              'Release notes',
+                      readMoreLabel:
+                          config.presentation.labels.readMore ?? 'Read more',
+                      showLessLabel:
+                          config.presentation.labels.showLess ?? 'Show less',
+                    ),
           );
         },
       );
@@ -430,7 +427,7 @@ class DefaultUpdatePresenter {
         _launchStore(
           context,
           packageName: config.packageName,
-          fallbackUrl: _resolveStoreUrl(config),
+          fallbackUrl: _resolveStoreUrl(config, state),
           override: config.onStoreLaunch,
         );
       },
@@ -453,22 +450,19 @@ class DefaultUpdatePresenter {
           canPop: false,
           child: _BlurredModalWrapper(
             sigma: config.presentation.theme.dialogBackgroundBlurSigma,
-            child:
-                config.forceUpdateWidget?.call(dialogContext, data) ??
+            child: config.forceUpdateWidget?.call(dialogContext, data) ??
                 _DefaultUpdateDialog(
                   data: data,
                   theme: config.presentation.theme,
                   iconBuilder: config.presentation.iconBuilder,
-                  alignment:
-                      config.presentation.contentAlignment ??
+                  alignment: config.presentation.contentAlignment ??
                       FirebaseUpdateContentAlignment.center,
-                  notesAlignment:
-                      config.presentation.patchNotesAlignment ??
+                  notesAlignment: config.presentation.patchNotesAlignment ??
                       FirebaseUpdateContentAlignment.start,
                   typography: config.presentation.typography,
                   releaseNotesHeading:
                       config.presentation.labels.releaseNotesHeading ??
-                      'Release notes',
+                          'Release notes',
                   readMoreLabel:
                       config.presentation.labels.readMore ?? 'Read more',
                   showLessLabel:
@@ -496,26 +490,21 @@ class DefaultUpdatePresenter {
       barrierColor: config.presentation.theme.barrierColor ?? Colors.black54,
       transitionDuration: const Duration(milliseconds: 250),
       pageBuilder: (dialogContext, animation, secondaryAnimation) {
-        final child =
-            customWidget?.call(dialogContext, data) ??
+        final child = customWidget?.call(dialogContext, data) ??
             _DefaultUpdateSheet(
               data: data,
               theme: config.presentation.theme,
               iconBuilder: config.presentation.iconBuilder,
-              alignment:
-                  config.presentation.contentAlignment ??
+              alignment: config.presentation.contentAlignment ??
                   FirebaseUpdateContentAlignment.start,
-              notesAlignment:
-                  config.presentation.patchNotesAlignment ??
+              notesAlignment: config.presentation.patchNotesAlignment ??
                   FirebaseUpdateContentAlignment.start,
               typography: config.presentation.typography,
               releaseNotesHeading:
                   config.presentation.labels.releaseNotesHeading ??
-                  'Release notes',
-              readMoreLabel:
-                  config.presentation.labels.readMore ?? 'Read more',
-              showLessLabel:
-                  config.presentation.labels.showLess ?? 'Show less',
+                      'Release notes',
+              readMoreLabel: config.presentation.labels.readMore ?? 'Read more',
+              showLessLabel: config.presentation.labels.showLess ?? 'Show less',
             );
         final blurSigma =
             config.presentation.theme.bottomSheetBackgroundBlurSigma ?? 0;
@@ -573,8 +562,7 @@ class DefaultUpdatePresenter {
   ) async {
     final labels = config.presentation.labels;
     final data = FirebaseUpdatePresentationData(
-      title:
-          state.title ??
+      title: state.title ??
           state.maintenanceTitle ??
           labels.maintenanceTitle ??
           'Maintenance in progress',
@@ -601,22 +589,19 @@ class DefaultUpdatePresenter {
           canPop: false,
           child: _BlurredModalWrapper(
             sigma: config.presentation.theme.dialogBackgroundBlurSigma,
-            child:
-                config.maintenanceWidget?.call(dialogContext, data) ??
+            child: config.maintenanceWidget?.call(dialogContext, data) ??
                 _DefaultUpdateDialog(
                   data: data,
                   theme: config.presentation.theme,
                   iconBuilder: config.presentation.iconBuilder,
-                  alignment:
-                      config.presentation.contentAlignment ??
+                  alignment: config.presentation.contentAlignment ??
                       FirebaseUpdateContentAlignment.center,
-                  notesAlignment:
-                      config.presentation.patchNotesAlignment ??
+                  notesAlignment: config.presentation.patchNotesAlignment ??
                       FirebaseUpdateContentAlignment.start,
                   typography: config.presentation.typography,
                   releaseNotesHeading:
                       config.presentation.labels.releaseNotesHeading ??
-                      'Release notes',
+                          'Release notes',
                   readMoreLabel:
                       config.presentation.labels.readMore ?? 'Read more',
                   showLessLabel:
@@ -694,26 +679,22 @@ class DefaultUpdatePresenter {
                 }
               : null,
         );
-        final child =
-            config.optionalUpdateWidget?.call(dialogContext, sheetData) ??
+        final child = config.optionalUpdateWidget
+                ?.call(dialogContext, sheetData) ??
             _DefaultUpdateSheet(
               data: sheetData,
               theme: config.presentation.theme,
               iconBuilder: config.presentation.iconBuilder,
-              alignment:
-                  config.presentation.contentAlignment ??
+              alignment: config.presentation.contentAlignment ??
                   FirebaseUpdateContentAlignment.start,
-              notesAlignment:
-                  config.presentation.patchNotesAlignment ??
+              notesAlignment: config.presentation.patchNotesAlignment ??
                   FirebaseUpdateContentAlignment.start,
               typography: config.presentation.typography,
               releaseNotesHeading:
                   config.presentation.labels.releaseNotesHeading ??
-                  'Release notes',
-              readMoreLabel:
-                  config.presentation.labels.readMore ?? 'Read more',
-              showLessLabel:
-                  config.presentation.labels.showLess ?? 'Show less',
+                      'Release notes',
+              readMoreLabel: config.presentation.labels.readMore ?? 'Read more',
+              showLessLabel: config.presentation.labels.showLess ?? 'Show less',
             );
         final blurSigma =
             config.presentation.theme.bottomSheetBackgroundBlurSigma ?? 0;
@@ -917,19 +898,23 @@ class DefaultUpdatePresenter {
     );
   }
 
-  String? _resolveStoreUrl(FirebaseUpdateConfig config) {
-    if (kIsWeb) return config.fallbackStoreUrls.web;
+  String? _resolveStoreUrl(
+      FirebaseUpdateConfig config, FirebaseUpdateState state) {
+    // RC-sourced URLs take priority; fall back to local config.
+    if (kIsWeb) {
+      return state.storeUrls?.web ?? config.fallbackStoreUrls.web;
+    }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
-        return config.fallbackStoreUrls.android;
+        return state.storeUrls?.android ?? config.fallbackStoreUrls.android;
       case TargetPlatform.iOS:
-        return config.fallbackStoreUrls.ios;
+        return state.storeUrls?.ios ?? config.fallbackStoreUrls.ios;
       case TargetPlatform.macOS:
-        return config.fallbackStoreUrls.macos;
+        return state.storeUrls?.macos ?? config.fallbackStoreUrls.macos;
       case TargetPlatform.windows:
-        return config.fallbackStoreUrls.windows;
+        return state.storeUrls?.windows ?? config.fallbackStoreUrls.windows;
       case TargetPlatform.linux:
-        return config.fallbackStoreUrls.linux;
+        return state.storeUrls?.linux ?? config.fallbackStoreUrls.linux;
       case TargetPlatform.fuchsia:
         return null;
     }
@@ -1210,8 +1195,7 @@ class _DefaultUpdatePanel extends StatelessWidget {
       children: [
         Align(
           alignment: _iconAlignment,
-          child:
-              resolvedIcon ??
+          child: resolvedIcon ??
               Container(
                 width: 48,
                 height: 48,
@@ -1233,20 +1217,28 @@ class _DefaultUpdatePanel extends StatelessWidget {
         Text(
           data.title,
           textAlign: _textAlign,
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-            color: theme.contentColor,
-            fontWeight: FontWeight.w800,
-          ).merge(typography.titleStyle),
+          style: Theme.of(context)
+              .textTheme
+              .headlineSmall
+              ?.copyWith(
+                color: theme.contentColor,
+                fontWeight: FontWeight.w800,
+              )
+              .merge(typography.titleStyle),
         ),
         if (state.message != null) ...[
           const SizedBox(height: 10),
           Text(
             state.message!,
             textAlign: _textAlign,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: theme.contentColor.withValues(alpha: 0.86),
-              height: 1.45,
-            ).merge(typography.messageStyle),
+            style: Theme.of(context)
+                .textTheme
+                .bodyLarge
+                ?.copyWith(
+                  color: theme.contentColor.withValues(alpha: 0.86),
+                  height: 1.45,
+                )
+                .merge(typography.messageStyle),
           ),
         ],
         if (state.patchNotes != null && state.patchNotes!.isNotEmpty) ...[
@@ -1259,10 +1251,14 @@ class _DefaultUpdatePanel extends StatelessWidget {
                 Text(
                   releaseNotesHeading,
                   textAlign: _notesTextAlign,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: theme.contentColor,
-                    fontWeight: FontWeight.w700,
-                  ).merge(typography.releaseNotesHeadingStyle),
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleSmall
+                      ?.copyWith(
+                        color: theme.contentColor,
+                        fontWeight: FontWeight.w700,
+                      )
+                      .merge(typography.releaseNotesHeadingStyle),
                 ),
                 const SizedBox(height: 8),
                 _PatchNotesContent(
@@ -1273,10 +1269,14 @@ class _DefaultUpdatePanel extends StatelessWidget {
                   showLessLabel: showLessLabel,
                   readMoreColor: theme.accentColor,
                   readMoreStyleOverride: typography.readMoreStyle,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: theme.contentColor.withValues(alpha: 0.82),
-                    height: 1.45,
-                  ).merge(typography.patchNotesStyle),
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodyMedium
+                      ?.copyWith(
+                        color: theme.contentColor.withValues(alpha: 0.82),
+                        height: 1.45,
+                      )
+                      .merge(typography.patchNotesStyle),
                 ),
               ],
             ),
@@ -1538,10 +1538,8 @@ class _PatchNotesContentState extends State<_PatchNotesContent> {
 
     // Use a character-count heuristic to decide if read-more is needed.
     // Strip tags to get an estimate of rendered content length.
-    final strippedLength = widget.notes
-        .replaceAll(RegExp(r'<[^>]*>'), '')
-        .trim()
-        .length;
+    final strippedLength =
+        widget.notes.replaceAll(RegExp(r'<[^>]*>'), '').trim().length;
     final needsToggle = strippedLength > 280;
 
     if (!needsToggle) {
@@ -1792,11 +1790,12 @@ class _ShorebirdPatchPanelState extends State<_ShorebirdPatchPanel> {
 
     return Column(
       mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: widget.alignment == FirebaseUpdateContentAlignment.start
-          ? CrossAxisAlignment.start
-          : widget.alignment == FirebaseUpdateContentAlignment.end
-              ? CrossAxisAlignment.end
-              : CrossAxisAlignment.center,
+      crossAxisAlignment:
+          widget.alignment == FirebaseUpdateContentAlignment.start
+              ? CrossAxisAlignment.start
+              : widget.alignment == FirebaseUpdateContentAlignment.end
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.center,
       children: [
         Align(
           alignment: widget.alignment == FirebaseUpdateContentAlignment.start
@@ -1828,10 +1827,14 @@ class _ShorebirdPatchPanelState extends State<_ShorebirdPatchPanel> {
               : widget.alignment == FirebaseUpdateContentAlignment.end
                   ? TextAlign.end
                   : TextAlign.center,
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-            color: visualTheme.contentColor,
-            fontWeight: FontWeight.w800,
-          ).merge(widget.typography.titleStyle),
+          style: Theme.of(context)
+              .textTheme
+              .headlineSmall
+              ?.copyWith(
+                color: visualTheme.contentColor,
+                fontWeight: FontWeight.w800,
+              )
+              .merge(widget.typography.titleStyle),
         ),
         const SizedBox(height: 10),
         Text(
@@ -1841,10 +1844,14 @@ class _ShorebirdPatchPanelState extends State<_ShorebirdPatchPanel> {
               : widget.alignment == FirebaseUpdateContentAlignment.end
                   ? TextAlign.end
                   : TextAlign.center,
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-            color: visualTheme.contentColor.withValues(alpha: 0.86),
-            height: 1.45,
-          ).merge(widget.typography.messageStyle),
+          style: Theme.of(context)
+              .textTheme
+              .bodyLarge
+              ?.copyWith(
+                color: visualTheme.contentColor.withValues(alpha: 0.86),
+                height: 1.45,
+              )
+              .merge(widget.typography.messageStyle),
         ),
       ],
     );

@@ -24,7 +24,7 @@ class FirebaseUpdateBuilder extends StatelessWidget {
 
   /// Called on every state change with the current [FirebaseUpdateState].
   final Widget Function(BuildContext context, FirebaseUpdateState state)
-  builder;
+      builder;
 
   @override
   Widget build(BuildContext context) {

@@ -40,9 +40,9 @@ class FirebaseRemoteConfigPayloadSource implements RemoteConfigPayloadSource {
     yield* remoteConfig.onConfigUpdated
         .where((event) => event.updatedKeys.contains(config.remoteConfigKey))
         .asyncMap((event) async {
-          await remoteConfig.activate();
-          return _decode(remoteConfig.getString(config.remoteConfigKey));
-        });
+      await remoteConfig.activate();
+      return _decode(remoteConfig.getString(config.remoteConfigKey));
+    });
   }
 
   Future<FirebaseRemoteConfig> _instance(FirebaseUpdateConfig config) async {

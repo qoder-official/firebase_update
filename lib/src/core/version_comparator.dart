@@ -9,9 +9,8 @@ class VersionComparator {
         : otherParts.length;
 
     for (var index = 0; index < maxLength; index++) {
-      final currentValue = index < currentParts.length
-          ? currentParts[index]
-          : 0;
+      final currentValue =
+          index < currentParts.length ? currentParts[index] : 0;
       final otherValue = index < otherParts.length ? otherParts[index] : 0;
 
       if (currentValue > otherValue) {

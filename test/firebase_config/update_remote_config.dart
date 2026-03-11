@@ -50,7 +50,8 @@ final _scenarios = <String, Map<String, dynamic>>{
     'update_type': 'optional',
     'optional_update_title': 'Update available',
     'optional_update_message': 'A new version is ready to install.',
-    'patch_notes': '• Bug fixes\n• Performance improvements\n• New dark mode support',
+    'patch_notes':
+        '• Bug fixes\n• Performance improvements\n• New dark mode support',
     'patch_notes_format': 'text',
     'maintenance_enabled': false,
     'maintenance_title': '',
@@ -104,12 +105,14 @@ Future<void> main(List<String> args) async {
   }
 
   if (!_scenarios.containsKey(scenario)) {
-    print("Unknown scenario '$scenario'. Choose from: ${_scenarios.keys.join(', ')}");
+    print(
+        "Unknown scenario '$scenario'. Choose from: ${_scenarios.keys.join(', ')}");
     exit(1);
   }
 
   // Load service account
-  final sa = jsonDecode(File(_serviceAccountFile).readAsStringSync()) as Map<String, dynamic>;
+  final sa = jsonDecode(File(_serviceAccountFile).readAsStringSync())
+      as Map<String, dynamic>;
   final projectId = sa['project_id'] as String;
   final clientEmail = sa['client_email'] as String;
   final privateKey = sa['private_key'] as String;
@@ -125,8 +128,8 @@ Future<void> main(List<String> args) async {
   print('  ETag: $etag');
 
   // Merge: keep all existing parameters, only upsert our key.
-  final parameters =
-      (currentBody['parameters'] as Map<String, dynamic>?) ?? <String, dynamic>{};
+  final parameters = (currentBody['parameters'] as Map<String, dynamic>?) ??
+      <String, dynamic>{};
   parameters[rcKey] = {
     'defaultValue': {'value': jsonEncode(_scenarios[scenario])},
   };
@@ -158,7 +161,8 @@ Future<void> main(List<String> args) async {
     print('   Parameter  : $rcKey');
     print('   Scenario   : $scenario');
     print('   New ETag   : $newEtag');
-    print('\nThe app will receive the change in real time if listenToRealtimeUpdates is true.');
+    print(
+        '\nThe app will receive the change in real time if listenToRealtimeUpdates is true.');
   } else {
     print('❌  Update failed: ${resp.statusCode}');
     print(resp.body);

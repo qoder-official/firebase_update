@@ -34,13 +34,13 @@ class FirebaseUpdate {
     AppVersionProvider? appVersionProvider,
     RemoteConfigPayloadSource? remoteConfigPayloadSource,
     StoreLauncher? storeLauncher,
-  }) : _appVersionProvider =
-           appVersionProvider ?? const PackageInfoAppVersionProvider(),
-       _remoteConfigPayloadSource =
-           remoteConfigPayloadSource ?? FirebaseRemoteConfigPayloadSource(),
-       _defaultUpdatePresenter = DefaultUpdatePresenter(
-         storeLauncher: storeLauncher ?? const AppReviewStoreLauncher(),
-       );
+  })  : _appVersionProvider =
+            appVersionProvider ?? const PackageInfoAppVersionProvider(),
+        _remoteConfigPayloadSource =
+            remoteConfigPayloadSource ?? FirebaseRemoteConfigPayloadSource(),
+        _defaultUpdatePresenter = DefaultUpdatePresenter(
+          storeLauncher: storeLauncher ?? const AppReviewStoreLauncher(),
+        );
 
   /// The shared singleton instance.
   static final FirebaseUpdate instance = FirebaseUpdate._();
@@ -114,11 +114,10 @@ class FirebaseUpdate {
     }
 
     await _refreshFromRemoteConfig(config);
-    _payloadSubscription = _remoteConfigPayloadSource
-        .watchPayload(config)
-        .listen((payload) {
-          _emit(_resolve(config: config, rawPayload: payload));
-        });
+    _payloadSubscription =
+        _remoteConfigPayloadSource.watchPayload(config).listen((payload) {
+      _emit(_resolve(config: config, rawPayload: payload));
+    });
   }
 
   /// Triggers an immediate Remote Config fetch and emits the resolved state.
@@ -161,7 +160,8 @@ class FirebaseUpdate {
     final payload = _payloadParser.parse(rawPayload);
     final state = _stateResolver.resolve(
       isInitialized: true,
-      currentVersion: currentVersion ?? _currentVersion ?? config.currentVersion,
+      currentVersion:
+          currentVersion ?? _currentVersion ?? config.currentVersion,
       payload: payload,
     );
     _emit(state);

@@ -1,3 +1,7 @@
+## 1.0.2
+
+- **RC-driven store URLs**: `store_url_android`, `store_url_ios`, `store_url_macos`, `store_url_windows`, `store_url_linux`, `store_url_web` can now be set in the Remote Config JSON payload. When present, they take priority over the local `FirebaseUpdateConfig.fallbackStoreUrls` values, allowing store URLs to be updated without a rebuild.
+
 ## 1.0.1
 
 - **Topics**: Added pub.dev topics (`updates`, `versioning`, `remote-config`, `firebase`, `app-management`)

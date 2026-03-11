@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../config/firebase_update_store_urls.dart';
 import 'firebase_update_patch_notes_format.dart';
 
 @immutable
@@ -17,6 +18,7 @@ class FirebaseUpdatePayload {
     this.maintenanceMessage,
     this.patchNotes,
     this.patchNotesFormat = FirebaseUpdatePatchNotesFormat.plainText,
+    this.storeUrls,
   });
 
   final String? minimumVersion;
@@ -31,4 +33,9 @@ class FirebaseUpdatePayload {
   final String? maintenanceMessage;
   final String? patchNotes;
   final FirebaseUpdatePatchNotesFormat patchNotesFormat;
+
+  /// Per-platform store URLs from Remote Config.
+  ///
+  /// When present, these take priority over [FirebaseUpdateConfig.fallbackStoreUrls].
+  final FirebaseUpdateStoreUrls? storeUrls;
 }

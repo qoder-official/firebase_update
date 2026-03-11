@@ -22,7 +22,8 @@ class FirebaseUpdateStateResolver {
       return const FirebaseUpdateState(
         kind: FirebaseUpdateKind.idle,
         isInitialized: true,
-        message: 'Firebase Update is initialized, but no current app version is available yet.',
+        message:
+            'Firebase Update is initialized, but no current app version is available yet.',
       );
     }
 
@@ -41,6 +42,7 @@ class FirebaseUpdateStateResolver {
         message: payload.maintenanceMessage ??
             payload.updateMessage ??
             'Maintenance mode is currently active for this app.',
+        storeUrls: payload.storeUrls,
       );
     }
 
@@ -49,7 +51,9 @@ class FirebaseUpdateStateResolver {
       return FirebaseUpdateState(
         kind: FirebaseUpdateKind.forceUpdate,
         isInitialized: true,
-        title: payload.forceUpdateTitle ?? payload.updateTitle ?? 'Update required',
+        title: payload.forceUpdateTitle ??
+            payload.updateTitle ??
+            'Update required',
         currentVersion: current,
         minimumVersion: minimum,
         latestVersion: _normalize(payload.latestVersion),
@@ -58,6 +62,7 @@ class FirebaseUpdateStateResolver {
         message: payload.forceUpdateMessage ??
             payload.updateMessage ??
             'A newer app version is required before this app can continue.',
+        storeUrls: payload.storeUrls,
       );
     }
 
@@ -66,7 +71,9 @@ class FirebaseUpdateStateResolver {
       return FirebaseUpdateState(
         kind: FirebaseUpdateKind.optionalUpdate,
         isInitialized: true,
-        title: payload.optionalUpdateTitle ?? payload.updateTitle ?? 'Update available',
+        title: payload.optionalUpdateTitle ??
+            payload.updateTitle ??
+            'Update available',
         currentVersion: current,
         minimumVersion: minimum,
         latestVersion: latest,
@@ -75,6 +82,7 @@ class FirebaseUpdateStateResolver {
         message: payload.optionalUpdateMessage ??
             payload.updateMessage ??
             'A newer app version is available.',
+        storeUrls: payload.storeUrls,
       );
     }
 
@@ -84,7 +92,9 @@ class FirebaseUpdateStateResolver {
       currentVersion: current,
       minimumVersion: minimum,
       latestVersion: latest,
-      message: payload.updateMessage ?? 'The current app version is up to date.',
+      message:
+          payload.updateMessage ?? 'The current app version is up to date.',
+      storeUrls: payload.storeUrls,
     );
   }
 

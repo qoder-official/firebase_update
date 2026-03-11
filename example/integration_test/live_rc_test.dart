@@ -84,7 +84,8 @@ Future<String> _getAccessToken() async {
     },
   );
 
-  final assertion = jwt.sign(RSAPrivateKey(_privateKey), algorithm: JWTAlgorithm.RS256);
+  final assertion =
+      jwt.sign(RSAPrivateKey(_privateKey), algorithm: JWTAlgorithm.RS256);
 
   final response = await http.post(
     Uri.parse('https://oauth2.googleapis.com/token'),
@@ -95,7 +96,8 @@ Future<String> _getAccessToken() async {
   );
 
   if (response.statusCode != 200) {
-    throw Exception('Token exchange failed ${response.statusCode}: ${response.body}');
+    throw Exception(
+        'Token exchange failed ${response.statusCode}: ${response.body}');
   }
 
   final body = jsonDecode(response.body) as Map<String, dynamic>;
@@ -146,7 +148,8 @@ Future<void> _pushRc(Map<String, dynamic>? payload) async {
   );
 
   if (putResponse.statusCode != 200) {
-    throw Exception('PUT remoteConfig failed ${putResponse.statusCode}: ${putResponse.body}');
+    throw Exception(
+        'PUT remoteConfig failed ${putResponse.statusCode}: ${putResponse.body}');
   }
 }
 

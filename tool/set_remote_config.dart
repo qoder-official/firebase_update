@@ -107,7 +107,8 @@ Map<String, dynamic> _buildPayload(
 // Remote Config REST API helpers
 // ---------------------------------------------------------------------------
 
-Future<String> _getEtag(http.Client client, String projectId, String token) async {
+Future<String> _getEtag(
+    http.Client client, String projectId, String token) async {
   final uri = Uri.parse(
     'https://firebaseremoteconfig.googleapis.com/v1/projects/$projectId/remoteConfig',
   );
@@ -241,8 +242,7 @@ Future<void> main(List<String> args) async {
           'Accept-Encoding': 'gzip',
         },
       );
-      final currentBody =
-          jsonDecode(getResponse.body) as Map<String, dynamic>;
+      final currentBody = jsonDecode(getResponse.body) as Map<String, dynamic>;
 
       final parameters =
           (currentBody['parameters'] as Map<String, dynamic>?) ?? {};

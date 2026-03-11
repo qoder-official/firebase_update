@@ -163,20 +163,20 @@ class FirebaseUpdateLabels {
 
 /// Signature for a builder that replaces the default package-managed modal
 /// with a custom widget.
-typedef FirebaseUpdateViewBuilder =
-    Widget Function(BuildContext context, FirebaseUpdatePresentationData data);
+typedef FirebaseUpdateViewBuilder = Widget Function(
+    BuildContext context, FirebaseUpdatePresentationData data);
 
 /// Signature for a builder that provides a custom icon for the default
 /// update panel.
-typedef FirebaseUpdateIconBuilder =
-    Widget Function(BuildContext context, FirebaseUpdateState state);
+typedef FirebaseUpdateIconBuilder = Widget Function(
+    BuildContext context, FirebaseUpdateState state);
 
 /// Controls how the default package-managed presentation looks and which
 /// components, if any, are replaced by custom builders.
 @immutable
 class FirebaseUpdatePresentation {
   const FirebaseUpdatePresentation({
-    this.useBottomSheetForOptionalUpdate = true,
+    this.useBottomSheetForOptionalUpdate = false,
     this.contentAlignment,
     this.patchNotesAlignment,
     this.typography = const FirebaseUpdateTypography(),
@@ -186,7 +186,7 @@ class FirebaseUpdatePresentation {
   });
 
   /// Whether optional updates should be presented as a bottom sheet rather
-  /// than a dialog. Defaults to `true`. Can be overridden per-config by
+  /// than a dialog. Defaults to `false`. Can be overridden per-config by
   /// [FirebaseUpdateConfig.useBottomSheetForOptionalUpdate].
   final bool useBottomSheetForOptionalUpdate;
 

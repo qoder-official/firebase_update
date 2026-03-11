@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../config/firebase_update_store_urls.dart';
 import 'firebase_update_kind.dart';
 import 'firebase_update_patch_notes_format.dart';
 
@@ -21,21 +22,23 @@ class FirebaseUpdateState {
     this.patchNotesFormat = FirebaseUpdatePatchNotesFormat.plainText,
     this.maintenanceTitle,
     this.maintenanceMessage,
+    this.storeUrls,
   });
 
   /// Convenience constructor for the uninitialized idle state.
   const FirebaseUpdateState.idle({
     this.isInitialized = false,
     this.message = 'Firebase Update is not initialized yet.',
-  }) : kind = FirebaseUpdateKind.idle,
-       title = null,
-       currentVersion = null,
-       minimumVersion = null,
-       latestVersion = null,
-       patchNotes = null,
-       patchNotesFormat = FirebaseUpdatePatchNotesFormat.plainText,
-       maintenanceTitle = null,
-       maintenanceMessage = null;
+  })  : kind = FirebaseUpdateKind.idle,
+        title = null,
+        currentVersion = null,
+        minimumVersion = null,
+        latestVersion = null,
+        patchNotes = null,
+        patchNotesFormat = FirebaseUpdatePatchNotesFormat.plainText,
+        maintenanceTitle = null,
+        maintenanceMessage = null,
+        storeUrls = null;
 
   /// The resolved [FirebaseUpdateKind] for this state.
   final FirebaseUpdateKind kind;
@@ -72,6 +75,11 @@ class FirebaseUpdateState {
   /// Maintenance dialog body message from Remote Config.
   final String? maintenanceMessage;
 
+  /// Per-platform store URLs from Remote Config.
+  ///
+  /// When present, these take priority over [FirebaseUpdateConfig.fallbackStoreUrls].
+  final FirebaseUpdateStoreUrls? storeUrls;
+
   /// Whether this state blocks user interaction (`forceUpdate` or
   /// `maintenance`).
   bool get isBlocking =>
@@ -90,6 +98,7 @@ class FirebaseUpdateState {
     FirebaseUpdatePatchNotesFormat? patchNotesFormat,
     String? maintenanceTitle,
     String? maintenanceMessage,
+    FirebaseUpdateStoreUrls? storeUrls,
   }) {
     return FirebaseUpdateState(
       kind: kind ?? this.kind,
@@ -103,6 +112,7 @@ class FirebaseUpdateState {
       patchNotesFormat: patchNotesFormat ?? this.patchNotesFormat,
       maintenanceTitle: maintenanceTitle ?? this.maintenanceTitle,
       maintenanceMessage: maintenanceMessage ?? this.maintenanceMessage,
+      storeUrls: storeUrls ?? this.storeUrls,
     );
   }
 }

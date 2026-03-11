@@ -24,7 +24,7 @@ void main() {
     required GlobalKey<NavigatorState> navigatorKey,
     FirebaseUpdateConfig? config,
     String version = '2.4.0',
-    bool useDialog = false,
+    bool useDialog = true,
     bool showSkipVersion = false,
     Duration? snoozeDuration,
     _FakePatchSource? patchSource,
@@ -100,7 +100,7 @@ void main() {
     tester,
   ) async {
     final navigatorKey = GlobalKey<NavigatorState>();
-    await _init(tester, navigatorKey: navigatorKey);
+    await _init(tester, navigatorKey: navigatorKey, useDialog: false);
 
     await _showOptionalUpdate(tester);
     expect(find.text('Update available'), findsOneWidget);
@@ -110,6 +110,56 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Update available'), findsNothing);
+  });
+
+  testWidgets(
+      'optional update shows as dialog by default (no bottom-sheet flag)', (
+    tester,
+  ) async {
+    // Relies purely on the new default — no useBottomSheetForOptionalUpdate set.
+    final navigatorKey = GlobalKey<NavigatorState>();
+    await FirebaseUpdate.instance.initialize(
+      navigatorKey: navigatorKey,
+      config: FirebaseUpdateConfig(
+        currentVersion: '2.4.0',
+        preferencesStore: store,
+      ),
+    );
+    await tester.pumpWidget(_HarnessApp(navigatorKey: navigatorKey));
+    await tester.pumpAndSettle();
+
+    await _showOptionalUpdate(tester);
+    expect(find.text('Update available'), findsOneWidget);
+    expect(find.text('Later'), findsOneWidget);
+
+    await tester.tap(find.text('Later'));
+    await tester.pumpAndSettle();
+    expect(find.text('Update available'), findsNothing);
+  });
+
+  testWidgets('RC store URLs are set on state after applyPayload',
+      (tester) async {
+    final navigatorKey = GlobalKey<NavigatorState>();
+    await _init(tester, navigatorKey: navigatorKey);
+
+    await FirebaseUpdate.instance.applyPayload({
+      'min_version': '2.0.0',
+      'latest_version': '2.6.0',
+      'store_url_android':
+          'https://play.google.com/store/apps/details?id=com.example',
+      'store_url_ios': 'https://apps.apple.com/app/id000000000',
+    });
+    await tester.pumpAndSettle();
+
+    final state = FirebaseUpdate.instance.currentState;
+    expect(state.kind, FirebaseUpdateKind.optionalUpdate);
+    expect(state.storeUrls, isNotNull);
+    expect(
+      state.storeUrls!.android,
+      'https://play.google.com/store/apps/details?id=com.example',
+    );
+    expect(state.storeUrls!.ios, 'https://apps.apple.com/app/id000000000');
+    expect(state.storeUrls!.macos, isNull);
   });
 
   testWidgets(
@@ -150,7 +200,8 @@ void main() {
     expect(find.text('Later'), findsNothing);
   });
 
-  testWidgets('optional update re-appears for newer version after session dismiss', (
+  testWidgets(
+      'optional update re-appears for newer version after session dismiss', (
     tester,
   ) async {
     final navigatorKey = GlobalKey<NavigatorState>();
@@ -276,7 +327,8 @@ void main() {
     await FirebaseUpdate.instance.applyPayload({
       'min_version': '2.0.0',
       'latest_version': '2.6.0',
-      'patch_notes': 'Line one\nLine two\nLine three\nLine four\nLine five\nLine six',
+      'patch_notes':
+          'Line one\nLine two\nLine three\nLine four\nLine five\nLine six',
     });
     await tester.pumpAndSettle();
 
@@ -558,14 +610,16 @@ void main() {
         ),
       );
       // Clock still before expiry.
-      FirebaseUpdate.instance.debugSetClock(() => persistedExpiry.subtract(const Duration(seconds: 1)));
+      FirebaseUpdate.instance.debugSetClock(
+          () => persistedExpiry.subtract(const Duration(seconds: 1)));
       await tester.pumpAndSettle();
 
       await _showOptionalUpdate(tester);
       expect(find.text('Update available'), findsNothing); // still snoozed
 
       // After expiry on second session.
-      FirebaseUpdate.instance.debugSetClock(() => persistedExpiry.add(const Duration(seconds: 1)));
+      FirebaseUpdate.instance
+          .debugSetClock(() => persistedExpiry.add(const Duration(seconds: 1)));
       await _showOptionalUpdate(tester);
       expect(find.text('Update available'), findsOneWidget);
     },
@@ -598,7 +652,8 @@ void main() {
       await tester.pumpAndSettle();
 
       await _showOptionalUpdate(tester);
-      expect(find.text('Update available'), findsOneWidget); // shows again after restart
+      expect(find.text('Update available'),
+          findsOneWidget); // shows again after restart
     },
   );
 
@@ -762,7 +817,8 @@ void main() {
     expect(callCount, 1);
   });
 
-  testWidgets('onForceUpdateTap fires when Update now is tapped on force dialog', (
+  testWidgets(
+      'onForceUpdateTap fires when Update now is tapped on force dialog', (
     tester,
   ) async {
     var callCount = 0;
@@ -788,7 +844,9 @@ void main() {
     expect(callCount, 1);
   });
 
-  testWidgets('onOptionalUpdateTap fires when Update now is tapped on optional dialog', (
+  testWidgets(
+      'onOptionalUpdateTap fires when Update now is tapped on optional dialog',
+      (
     tester,
   ) async {
     var callCount = 0;

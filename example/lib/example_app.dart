@@ -26,10 +26,14 @@ class ExampleAppKeys {
   static const optionalUpdateBottomSheetButton = ValueKey<String>(
     'simulator-optional-update-bottom-sheet',
   );
-  static const forceUpdateDialogButton = ValueKey<String>('simulator-force-update-dialog');
-  static const forceUpdateBottomSheetButton = ValueKey<String>('simulator-force-update-sheet');
-  static const maintenanceDialogButton = ValueKey<String>('simulator-maintenance-dialog');
-  static const maintenanceBottomSheetButton = ValueKey<String>('simulator-maintenance-sheet');
+  static const forceUpdateDialogButton =
+      ValueKey<String>('simulator-force-update-dialog');
+  static const forceUpdateBottomSheetButton =
+      ValueKey<String>('simulator-force-update-sheet');
+  static const maintenanceDialogButton =
+      ValueKey<String>('simulator-maintenance-dialog');
+  static const maintenanceBottomSheetButton =
+      ValueKey<String>('simulator-maintenance-sheet');
 }
 
 // ---------------------------------------------------------------------------
@@ -70,8 +74,7 @@ Future<void> initializeExampleFirebaseUpdate({
 // Long content strings for demo
 // ---------------------------------------------------------------------------
 
-const _longPlainText =
-    'Redesigned home screen with cleaner navigation bar\n'
+const _longPlainText = 'Redesigned home screen with cleaner navigation bar\n'
     'Dark mode across all screens and components\n'
     '40% faster app startup time\n'
     'New notifications centre with grouped alerts and filters\n'
@@ -86,8 +89,7 @@ const _longPlainText =
     'Background sync improvements reduce battery usage\n'
     'New widget support for iOS home screen and lock screen';
 
-const _longHtml =
-    '<ul>'
+const _longHtml = '<ul>'
     '<li>Redesigned home screen with cleaner navigation bar</li>'
     '<li>Dark mode across all screens and components</li>'
     '<li>40% faster app startup time</li>'
@@ -183,15 +185,15 @@ class _StateCard extends StatelessWidget {
                 Text(
                   'Current state',
                   style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   state.kind.name,
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
                 if (state.message != null) ...[
                   const SizedBox(height: 4),
@@ -252,7 +254,8 @@ class _SimulatorPanel extends StatelessWidget {
               'latest_version': '2.6.0',
               'optional_update_title': 'Update available',
               'optional_update_message': 'A smoother release is ready.',
-              'patch_notes': 'Version 2.6.0 — faster startup, cleaner onboarding, bug fixes.',
+              'patch_notes':
+                  'Version 2.6.0 — faster startup, cleaner onboarding, bug fixes.',
               'patch_notes_format': 'text',
             });
           },
@@ -270,7 +273,8 @@ class _SimulatorPanel extends StatelessWidget {
               'latest_version': '2.6.0',
               'optional_update_title': 'Update available',
               'optional_update_message': 'A smoother release is ready.',
-              'patch_notes': 'Version 2.6.0 — faster startup, cleaner onboarding, bug fixes.',
+              'patch_notes':
+                  'Version 2.6.0 — faster startup, cleaner onboarding, bug fixes.',
               'patch_notes_format': 'text',
             });
           },
@@ -286,7 +290,8 @@ class _SimulatorPanel extends StatelessWidget {
             await FirebaseUpdate.instance.applyPayload({
               'min_version': '2.5.0',
               'latest_version': '2.6.0',
-              'force_update_message': 'This release contains required backend changes.',
+              'force_update_message':
+                  'This release contains required backend changes.',
               'patch_notes':
                   '<ul><li>Security fixes</li><li>Required backend compatibility changes</li></ul>',
               'patch_notes_format': 'html',
@@ -304,7 +309,8 @@ class _SimulatorPanel extends StatelessWidget {
             await FirebaseUpdate.instance.applyPayload({
               'min_version': '2.5.0',
               'latest_version': '2.6.0',
-              'force_update_message': 'This release contains required backend changes.',
+              'force_update_message':
+                  'This release contains required backend changes.',
               'patch_notes':
                   '<ul><li>Security fixes</li><li>Required backend compatibility changes</li></ul>',
               'patch_notes_format': 'html',
@@ -368,7 +374,8 @@ class _LongContentPanel extends StatelessWidget {
               'min_version': '2.0.0',
               'latest_version': '2.6.0',
               'optional_update_title': 'Update available',
-              'optional_update_message': 'A new version is ready with many improvements.',
+              'optional_update_message':
+                  'A new version is ready with many improvements.',
               'patch_notes': _longPlainText,
               'patch_notes_format': 'text',
             });
@@ -385,7 +392,8 @@ class _LongContentPanel extends StatelessWidget {
               'min_version': '2.0.0',
               'latest_version': '2.6.0',
               'optional_update_title': 'Update available',
-              'optional_update_message': 'A new version is ready with many improvements.',
+              'optional_update_message':
+                  'A new version is ready with many improvements.',
               'patch_notes': _longPlainText,
               'patch_notes_format': 'text',
             });
@@ -402,7 +410,8 @@ class _LongContentPanel extends StatelessWidget {
               'min_version': '2.0.0',
               'latest_version': '2.6.0',
               'optional_update_title': 'Update available',
-              'optional_update_message': 'A new version is ready with many improvements.',
+              'optional_update_message':
+                  'A new version is ready with many improvements.',
               'patch_notes': _longHtml,
               'patch_notes_format': 'html',
             });
@@ -419,7 +428,8 @@ class _LongContentPanel extends StatelessWidget {
               'min_version': '2.0.0',
               'latest_version': '2.6.0',
               'optional_update_title': 'Update available',
-              'optional_update_message': 'A new version is ready with many improvements.',
+              'optional_update_message':
+                  'A new version is ready with many improvements.',
               'patch_notes': _longHtml,
               'patch_notes_format': 'html',
             });
@@ -562,15 +572,13 @@ class _LiveConfigTesterState extends State<_LiveConfigTester> {
     }
   }
 
-  List<String> get _recognizedKeys =>
-      _parsedPayload == null
-          ? []
-          : _parsedPayload!.keys.where(_knownKeys.contains).toList();
+  List<String> get _recognizedKeys => _parsedPayload == null
+      ? []
+      : _parsedPayload!.keys.where(_knownKeys.contains).toList();
 
-  List<String> get _unknownKeys =>
-      _parsedPayload == null
-          ? []
-          : _parsedPayload!.keys.where((k) => !_knownKeys.contains(k)).toList();
+  List<String> get _unknownKeys => _parsedPayload == null
+      ? []
+      : _parsedPayload!.keys.where((k) => !_knownKeys.contains(k)).toList();
 
   @override
   Widget build(BuildContext context) {
@@ -600,11 +608,13 @@ class _LiveConfigTesterState extends State<_LiveConfigTester> {
           onChanged: _onJsonChanged,
           decoration: InputDecoration(
             labelText: 'Remote Config payload (JSON)',
-            hintText: '{\n  "min_version": "2.0.0",\n  "latest_version": "2.6.0"\n}',
+            hintText:
+                '{\n  "min_version": "2.0.0",\n  "latest_version": "2.6.0"\n}',
             border: const OutlineInputBorder(),
             errorText: _validationError,
             errorMaxLines: 3,
-            suffixIcon: isValid ? Icon(Icons.check_circle, color: cs.primary) : null,
+            suffixIcon:
+                isValid ? Icon(Icons.check_circle, color: cs.primary) : null,
           ),
         ),
 

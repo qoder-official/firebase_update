@@ -122,7 +122,125 @@ void main() {
       config.fallbackStoreUrls.android,
       'https://play.google.com/store/apps/details?id=com.qoder.app',
     );
-    expect(config.fallbackStoreUrls.ios, 'https://apps.apple.com/app/id123456789');
+    expect(
+        config.fallbackStoreUrls.ios, 'https://apps.apple.com/app/id123456789');
+  });
+
+  // ---------------------------------------------------------------------------
+  // v1.0.2 defaults and RC store URLs
+  // ---------------------------------------------------------------------------
+
+  test('useBottomSheetForOptionalUpdate defaults to false (dialog)', () {
+    const presentation = FirebaseUpdatePresentation();
+    expect(presentation.useBottomSheetForOptionalUpdate, isFalse);
+  });
+
+  test('RC store URL keys are parsed from payload into state.storeUrls',
+      () async {
+    await FirebaseUpdate.instance.initialize(
+      navigatorKey: GlobalKey<NavigatorState>(),
+      config: FirebaseUpdateConfig(
+        currentVersion: '2.4.0',
+        preferencesStore: _InMemoryStore(),
+      ),
+    );
+
+    final state = await FirebaseUpdate.instance.applyPayload({
+      'min_version': '2.0.0',
+      'latest_version': '2.6.0',
+      'store_url_android':
+          'https://play.google.com/store/apps/details?id=com.example',
+      'store_url_ios': 'https://apps.apple.com/app/id123456789',
+    });
+
+    expect(state.kind, FirebaseUpdateKind.optionalUpdate);
+    expect(state.storeUrls, isNotNull);
+    expect(
+      state.storeUrls!.android,
+      'https://play.google.com/store/apps/details?id=com.example',
+    );
+    expect(state.storeUrls!.ios, 'https://apps.apple.com/app/id123456789');
+    expect(state.storeUrls!.macos, isNull);
+  });
+
+  test('state.storeUrls is null when no store URL keys in payload', () async {
+    await FirebaseUpdate.instance.initialize(
+      navigatorKey: GlobalKey<NavigatorState>(),
+      config: FirebaseUpdateConfig(
+        currentVersion: '2.4.0',
+        preferencesStore: _InMemoryStore(),
+      ),
+    );
+
+    final state = await FirebaseUpdate.instance.applyPayload({
+      'min_version': '2.0.0',
+      'latest_version': '2.6.0',
+    });
+
+    expect(state.storeUrls, isNull);
+  });
+
+  test('RC store URLs propagate through force update and maintenance states',
+      () async {
+    await FirebaseUpdate.instance.initialize(
+      navigatorKey: GlobalKey<NavigatorState>(),
+      config: FirebaseUpdateConfig(
+        currentVersion: '2.4.0',
+        preferencesStore: _InMemoryStore(),
+      ),
+    );
+
+    final forceState = await FirebaseUpdate.instance.applyPayload({
+      'min_version': '2.5.0',
+      'latest_version': '2.6.0',
+      'store_url_android':
+          'https://play.google.com/store/apps/details?id=com.example',
+    });
+    expect(forceState.kind, FirebaseUpdateKind.forceUpdate);
+    expect(
+      forceState.storeUrls?.android,
+      'https://play.google.com/store/apps/details?id=com.example',
+    );
+
+    final maintenanceState = await FirebaseUpdate.instance.applyPayload({
+      'maintenance_message': 'Down for maintenance',
+      'store_url_android':
+          'https://play.google.com/store/apps/details?id=com.example',
+    });
+    expect(maintenanceState.kind, FirebaseUpdateKind.maintenance);
+    expect(
+      maintenanceState.storeUrls?.android,
+      'https://play.google.com/store/apps/details?id=com.example',
+    );
+  });
+
+  test('all six RC store URL keys parse correctly', () async {
+    await FirebaseUpdate.instance.initialize(
+      navigatorKey: GlobalKey<NavigatorState>(),
+      config: FirebaseUpdateConfig(
+        currentVersion: '2.4.0',
+        preferencesStore: _InMemoryStore(),
+      ),
+    );
+
+    final state = await FirebaseUpdate.instance.applyPayload({
+      'min_version': '2.0.0',
+      'latest_version': '2.6.0',
+      'store_url_android': 'https://example.com/android',
+      'store_url_ios': 'https://example.com/ios',
+      'store_url_macos': 'https://example.com/macos',
+      'store_url_windows': 'https://example.com/windows',
+      'store_url_linux': 'https://example.com/linux',
+      'store_url_web': 'https://example.com/web',
+    });
+
+    final urls = state.storeUrls!;
+    expect(urls.android, 'https://example.com/android');
+    expect(urls.ios, 'https://example.com/ios');
+    expect(urls.macos, 'https://example.com/macos');
+    expect(urls.windows, 'https://example.com/windows');
+    expect(urls.linux, 'https://example.com/linux');
+    expect(urls.web, 'https://example.com/web');
   });
 
   // ---------------------------------------------------------------------------
@@ -165,7 +283,9 @@ void main() {
     expect(labels.applyPatch, 'Apply now');
   });
 
-  test('FirebaseUpdatePresentationData supports tertiaryLabel and onTertiaryTap', () {
+  test(
+      'FirebaseUpdatePresentationData supports tertiaryLabel and onTertiaryTap',
+      () {
     var tapped = false;
     final data = FirebaseUpdatePresentationData(
       title: 'Test',

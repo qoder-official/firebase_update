@@ -110,7 +110,7 @@ class FirebaseUpdateConfig {
 
   /// When `true`, optional updates are shown as a bottom sheet. When `false`,
   /// a dialog is used. Falls back to [FirebaseUpdatePresentation.useBottomSheetForOptionalUpdate]
-  /// when not set.
+  /// when not set. The global default is `false` (dialog).
   final bool? useBottomSheetForOptionalUpdate;
 
   /// When `true`, force updates are shown as a bottom sheet instead of a dialog.
