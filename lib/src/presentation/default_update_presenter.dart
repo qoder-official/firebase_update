@@ -457,6 +457,7 @@ class DefaultUpdatePresenter {
       await showDialog<void>(
         context: context,
         useRootNavigator: true,
+        useSafeArea: false,
         barrierColor: config.presentation.theme.barrierColor,
         builder: (dialogContext) => _BlurredModalWrapper(
           sigma: config.presentation.theme.dialogBackgroundBlurSigma,
@@ -520,6 +521,7 @@ class DefaultUpdatePresenter {
       await showDialog<void>(
         context: context,
         useRootNavigator: true,
+        useSafeArea: false,
         barrierDismissible: false,
         barrierColor: config.presentation.theme.barrierColor,
         builder: (dialogContext) => PopScope(
@@ -659,6 +661,7 @@ class DefaultUpdatePresenter {
       await showDialog<void>(
         context: context,
         useRootNavigator: true,
+        useSafeArea: false,
         barrierDismissible: false,
         barrierColor: config.presentation.theme.barrierColor,
         builder: (dialogContext) => PopScope(
@@ -842,6 +845,7 @@ class DefaultUpdatePresenter {
     await showDialog<void>(
       context: context,
       useRootNavigator: true,
+      useSafeArea: false,
       barrierColor: config.presentation.theme.barrierColor,
       builder: (dialogContext) {
         return _BlurredModalWrapper(
