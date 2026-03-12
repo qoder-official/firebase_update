@@ -7,7 +7,7 @@
 
 Force updates, optional updates, maintenance mode, and patch notes — with real-time Remote Config listening, built-in UI, snooze, skip-version, and full customization. Push a config change, your users see it instantly. No app restart required.
 
-**[Full documentation → qoder.in/resources/firebase-update](https://qoder.in/resources/firebase-update)**
+**[Full documentation → qoder.in/resources/firebase-update](https://qoder.in/resources/firebase_update)**
 
 <p>
   <img src="screenshots/optional_update_dialog.png" alt="Optional update dialog" width="200" />
