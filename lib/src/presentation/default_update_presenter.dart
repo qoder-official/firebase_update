@@ -572,7 +572,7 @@ class DefaultUpdatePresenter {
               theme: config.presentation.theme,
               iconBuilder: config.presentation.iconBuilder,
               alignment: config.presentation.contentAlignment ??
-                  FirebaseUpdateContentAlignment.start,
+                  FirebaseUpdateContentAlignment.center,
               notesAlignment: config.presentation.patchNotesAlignment ??
                   FirebaseUpdateContentAlignment.start,
               typography: config.presentation.typography,
@@ -740,7 +740,7 @@ class DefaultUpdatePresenter {
               theme: config.presentation.theme,
               iconBuilder: config.presentation.iconBuilder,
               alignment: config.presentation.contentAlignment ??
-                  FirebaseUpdateContentAlignment.start,
+                  FirebaseUpdateContentAlignment.center,
               notesAlignment: config.presentation.patchNotesAlignment ??
                   FirebaseUpdateContentAlignment.start,
               typography: config.presentation.typography,
@@ -1264,11 +1264,11 @@ class _DefaultUpdatePanel extends StatelessWidget {
           alignment: _iconAlignment,
           child: resolvedIcon ??
               Container(
-                width: 48,
-                height: 48,
+                width: 56,
+                height: 56,
                 decoration: BoxDecoration(
                   color: theme.accentColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(16),
+                  shape: BoxShape.circle,
                 ),
                 child: Center(
                   child: Icon(
@@ -1276,6 +1276,7 @@ class _DefaultUpdatePanel extends StatelessWidget {
                         ? Icons.construction_rounded
                         : Icons.system_update_alt_rounded,
                     color: theme.accentColor,
+                    size: 26,
                   ),
                 ),
               ),
@@ -1387,7 +1388,7 @@ class _DefaultUpdatePanel extends StatelessWidget {
                 minimumSize: const Size.fromHeight(54),
                 textStyle: typography.secondaryButtonStyle,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(100),
                 ),
               ),
               child: Text(data.secondaryLabel!),
@@ -1407,7 +1408,7 @@ class _DefaultUpdatePanel extends StatelessWidget {
                 minimumSize: const Size.fromHeight(54),
                 textStyle: typography.primaryButtonStyle,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(100),
                 ),
               ),
               child: Text(data.primaryLabel),
@@ -1893,16 +1894,17 @@ class _ShorebirdPatchPanelState extends State<_ShorebirdPatchPanel> {
                   : Alignment.center,
           child: resolvedIcon ??
               Container(
-                width: 48,
-                height: 48,
+                width: 56,
+                height: 56,
                 decoration: BoxDecoration(
                   color: visualTheme.accentColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(16),
+                  shape: BoxShape.circle,
                 ),
                 child: Center(
                   child: Icon(
                     Icons.auto_fix_high_rounded,
                     color: visualTheme.accentColor,
+                    size: 26,
                   ),
                 ),
               ),
@@ -1962,7 +1964,7 @@ class _ShorebirdPatchPanelState extends State<_ShorebirdPatchPanel> {
               minimumSize: const Size.fromHeight(54),
               textStyle: widget.typography.secondaryButtonStyle,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(100),
               ),
             ),
             child: Text(widget.laterLabel),
@@ -1978,7 +1980,7 @@ class _ShorebirdPatchPanelState extends State<_ShorebirdPatchPanel> {
               minimumSize: const Size.fromHeight(54),
               textStyle: widget.typography.primaryButtonStyle,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(100),
               ),
             ),
             child: _isApplying

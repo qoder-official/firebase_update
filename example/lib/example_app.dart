@@ -126,6 +126,7 @@ class FirebaseUpdateExampleApp extends StatelessWidget {
     return MaterialApp(
       navigatorKey: rootNavigatorKey,
       title: 'firebase_update example',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(colorSchemeSeed: Colors.indigo),
       home: const ExampleHomePage(),
     );

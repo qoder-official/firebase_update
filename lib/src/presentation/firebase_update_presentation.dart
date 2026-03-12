@@ -234,8 +234,8 @@ class FirebaseUpdatePresentationTheme {
     this.mutedContentColor,
     this.outlineColor,
     this.barrierColor,
-    this.dialogBackgroundBlurSigma,
-    this.bottomSheetBackgroundBlurSigma,
+    this.dialogBackgroundBlurSigma = 20.0,
+    this.bottomSheetBackgroundBlurSigma = 20.0,
     this.heroGradient,
     this.dialogBorderRadius = const BorderRadius.all(Radius.circular(28)),
     this.sheetBorderRadius = const BorderRadius.vertical(
