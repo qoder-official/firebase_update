@@ -1,18 +1,26 @@
 # firebase_update
 
-> Flutter force update, maintenance mode, and real-time update prompts with Firebase Remote Config.
+> One package. Zero boilerplate. Full control over every update state — without an app restart.
 
 [![pub.dev](https://img.shields.io/pub/v/firebase_update.svg)](https://pub.dev/packages/firebase_update)
 [![License: BSD-3-Clause](https://img.shields.io/badge/license-BSD--3--Clause-blue.svg)](LICENSE)
 
-One package to handle forced updates, optional updates, maintenance mode, and patch notes — with built-in UI, real-time Remote Config listening, and full customization hooks.
+Force updates, optional updates, maintenance mode, and patch notes — with real-time Remote Config listening, built-in UI, snooze, skip-version, and full customization. Push a config change, your users see it instantly. No app restart required.
 
 **[Full documentation → qoder.in/resources/firebase-update](https://qoder.in/resources/firebase-update)**
+
+<p>
+  <img src="screenshots/optional_update_dialog.png" alt="Optional update dialog" width="200" />
+  <img src="screenshots/optional_update_sheet.png" alt="Optional update sheet" width="200" />
+  <img src="screenshots/force_update_dialog.png" alt="Force update dialog" width="200" />
+  <img src="screenshots/maintenance_dialog.png" alt="Maintenance dialog" width="200" />
+</p>
 
 ---
 
 ## Index
 
+- [Why firebase_update?](#why-firebase_update)
 - [Features](#features)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
@@ -28,24 +36,45 @@ One package to handle forced updates, optional updates, maintenance mode, and pa
 
 ---
 
+## Why firebase_update?
+
+Most teams either cobble together a DIY solution or find that existing packages miss the edge cases that matter in production. Here's how we compare:
+
+| | **firebase_update** | force_update_helper | update_manager | DIY |
+|---|:---:|:---:|:---:|:---:|
+| Real-time RC (no restart) | ✅ | ❌ | ❌ | ❌ |
+| Maintenance mode kill-switch | ✅ | ❌ | ❌ | manual |
+| Snooze with version-awareness | ✅ | ❌ | ❌ | ❌ |
+| Skip version (persistent) | ✅ | ❌ | ❌ | ❌ |
+| Built-in UI (zero setup) | ✅ | ❌ | ✅ | ❌ |
+| Correct state transitions | ✅ | ❌ | ❌ | ❌ |
+| Shorebird patch support | ✅ | ❌ | ✅ | ❌ |
+| Flavor filtering | ✅ | ❌ | ❌ | ❌ |
+| Custom persistence backend | ✅ | ❌ | ❌ | ❌ |
+
+**Real-time listening** is the feature most teams realize they need at 2am during a production incident. Push a Remote Config change — your users see the maintenance gate or update prompt immediately, without restarting the app.
+
+---
+
 ## Features
 
-- **Force update** — blocks app usage when a breaking release is required
-- **Optional update** — encourages upgrade via a dismissible dialog or bottom sheet
-- **Maintenance mode** — instantly gates the app without shipping a build
+- **Real-time updates** — reacts to Remote Config changes the moment you push them; no app restart, no polling
+- **Force update** — blocks app usage and routes users directly to the store when a breaking release is required
+- **Optional update** — encourages upgrade with a dismissible dialog or bottom sheet; respects snooze and skip preferences
+- **Maintenance mode** — instantly gates the entire app with a single RC change; lifts just as fast when you're done
+- **Smart snooze** — version-aware: snooze resets automatically when a newer version is served, so urgent releases still get through
+- **Skip version** — lets users permanently dismiss a specific version without hiding future ones
 - **Patch notes** — plain text or HTML, shown inline in the update UI
-- **Real-time updates** — reacts to Remote Config changes without an app restart
-- **Built-in UI** — default dialog and bottom sheet, no setup beyond a `navigatorKey`
-- **Custom UI** — replace any surface with your own widget builders
-- **`FirebaseUpdateBuilder`** — reactive widget for building your own in-screen update surfaces
+- **Built-in UI** — default dialog and bottom sheet, ready to go with just a `navigatorKey`
+- **Full custom UI** — replace any surface with your own widget builders; the tap logic is pre-wired
+- **`FirebaseUpdateBuilder`** — reactive widget for building in-screen banners, settings rows, or any custom surface
 
 ---
 
 ## Installation
 
-```yaml
-dependencies:
-  firebase_update: ^1.0.0
+```sh
+dart pub add firebase_update
 ```
 
 This package requires Firebase to already be set up in your app. If you haven't done that yet, follow the [FlutterFire setup guide](https://firebase.flutter.dev/docs/overview).
@@ -85,7 +114,7 @@ MaterialApp(
 )
 ```
 
-That's it. The package now listens for Remote Config changes and automatically presents the appropriate UI when an update or maintenance state is detected.
+That's all. Your app now handles force updates, optional updates, maintenance mode, real-time config changes, snooze, skip-version, and store launch — automatically.
 
 ---
 
@@ -121,8 +150,6 @@ Create a parameter named `firebase_update_config` in the Firebase console (or us
 ---
 
 ## Payload Examples
-
-These are the three default states most teams care about first. The screenshots below were generated from [`scripts/take_screenshots.sh`](/Volumes/Development/Projects/flutter/Qoder/firebase_update/scripts/take_screenshots.sh), so the README reflects the actual packaged UI.
 
 ### Optional Update
 
@@ -175,8 +202,6 @@ Use this when you need to temporarily gate the app without shipping a new build.
 ```
 
 <img src="screenshots/maintenance_dialog.png" alt="Maintenance dialog" width="320" />
-
-If you want to go beyond the defaults, the next sections cover state handling, presentation controls, and fully custom surfaces.
 
 ---
 
@@ -463,7 +488,7 @@ Behavior and hooks:
 | `onSnoozed` | `void Function(String, Duration)?` | Fires when optional prompt is snoozed |
 | `onVersionSkipped` | `void Function(String)?` | Fires when a version is skipped |
 | `allowedFlavors` | `List<String>?` | Whitelist build flavors using `--dart-define=FLAVOR=...` |
-| `showSkipVersion` | `bool` | Shows “Skip this version” on optional prompts |
+| `showSkipVersion` | `bool` | Shows "Skip this version" on optional prompts |
 | `snoozeDuration` | `Duration?` | Default snooze duration |
 | `preferencesStore` | `FirebaseUpdatePreferencesStore?` | Custom persistence backend for skip/snooze |
 
