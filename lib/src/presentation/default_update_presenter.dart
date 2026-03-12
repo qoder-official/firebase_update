@@ -97,10 +97,12 @@ class DefaultUpdatePresenter {
     required FirebaseUpdatePreferencesStore store,
     required String? skippedVersion,
     required DateTime? snoozedUntil,
+    required String? snoozedForVersion,
   }) {
     _store = store;
     _skippedVersion = skippedVersion;
     _snoozedUntil = snoozedUntil;
+    _snoozedForVersion = snoozedForVersion;
   }
 
   // ---------------------------------------------------------------------------
@@ -121,6 +123,9 @@ class DefaultUpdatePresenter {
     _snoozedForVersion = forVersion;
     // Timed snooze supersedes any active session dismiss for the same version.
     _sessionDismissedVersion = null;
+    if (forVersion != null) {
+      unawaited(_store?.setSnoozedForVersion(forVersion));
+    }
     return until;
   }
 
@@ -189,6 +194,19 @@ class DefaultUpdatePresenter {
     _lastConfig = config;
     if (state.kind == FirebaseUpdateKind.optionalUpdate) {
       _lastOptionalState = state;
+    }
+
+    // A force update supersedes any prior optional snooze — the user is
+    // blocked by the server, not voluntarily deferring.  Clearing the snooze
+    // here ensures that when the force constraint is later lifted and state
+    // drops back to optionalUpdate, the dialog appears immediately instead of
+    // being silently suppressed by a stale snooze.
+    if (state.kind == FirebaseUpdateKind.forceUpdate && _snoozedUntil != null) {
+      _snoozedUntil = null;
+      _snoozedForVersion = null;
+      _snoozeExpiryTimer?.cancel();
+      _snoozeExpiryTimer = null;
+      unawaited(_store?.clearSnoozedUntil());
     }
 
     if (state.kind == FirebaseUpdateKind.idle ||
@@ -378,6 +396,7 @@ class DefaultUpdatePresenter {
           _snoozedUntil = until;
           _snoozedForVersion = versionBeingOffered;
           unawaited(_store?.setSnoozedUntil(until));
+          unawaited(_store?.setSnoozedForVersion(versionBeingOffered));
           config.onSnoozed?.call(versionBeingOffered, snoozeDuration);
           // _lastNavigatorKey is guaranteed non-null here: presentIfNeeded
           // stores it before calling _presentOptionalUpdate.

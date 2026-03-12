@@ -1,3 +1,14 @@
+## 1.0.5
+
+### Bug fixes
+- **Force→optional snooze regression**: When a snooze was active and the server raised the minimum version (triggering a force update), rolling the minimum back to optional would silently suppress the optional dialog — the force dialog dismissed but nothing appeared. Fixed by clearing any active optional snooze as soon as a force update state is presented. The user was blocked by the server, not voluntarily deferring, so the snooze should not persist through a force update event
+- **`snoozedForVersion` not persisted**: `_snoozedForVersion` was held in-memory only. After a restart the version-mismatch check that clears a stale snooze when a newer version is offered was always skipped, meaning a snooze for v1.x could silently suppress an optional prompt for v1.y in a new session. Fixed by persisting the snooze target version via the new `setSnoozedForVersion` / `getSnoozedForVersion` methods on `FirebaseUpdatePreferencesStore` — both with no-op defaults so custom store implementations are not broken
+
+### Store interface additions (non-breaking)
+- `FirebaseUpdatePreferencesStore.getSnoozedForVersion()` — default returns `null`
+- `FirebaseUpdatePreferencesStore.setSnoozedForVersion(String version)` — default is a no-op
+- `clearSnoozedUntil()` now also removes the persisted `snoozedForVersion` in `SharedPreferencesFirebaseUpdateStore`
+
 ## 1.0.4
 
 - **Integration test screenshots**: Added `example/integration_test/screenshot_test.dart` — captures 8 UI states (optional dialog, optional sheet, force dialog, force sheet, maintenance dialog, maintenance sheet, patch notes expanded, home screen) via `flutter drive`. Added `scripts/take_screenshots.sh` to run screenshot capture against a connected device or simulator. Screenshots are saved to `screenshots/` at the package root and used as README assets

@@ -25,8 +25,22 @@ abstract class FirebaseUpdatePreferencesStore {
   /// Persists [until] as the snooze expiry timestamp.
   Future<void> setSnoozedUntil(DateTime until);
 
-  /// Clears any persisted snooze state.
+  /// Clears any persisted snooze state (both expiry timestamp and version).
   Future<void> clearSnoozedUntil();
+
+  /// Returns the `latestVersion` string that was active when the user snoozed,
+  /// or `null` if not stored.  Used to detect when a newer version is offered
+  /// after a restart so the stale snooze can be cleared.
+  ///
+  /// Default implementation returns `null` (no persistence).  Custom stores
+  /// that want version-aware snooze clearing across restarts should override
+  /// this and [setSnoozedForVersion].
+  Future<String?> getSnoozedForVersion() async => null;
+
+  /// Persists [version] alongside the snooze expiry so it survives restarts.
+  ///
+  /// Default implementation is a no-op.
+  Future<void> setSnoozedForVersion(String version) async {}
 }
 
 /// Default [FirebaseUpdatePreferencesStore] backed by `shared_preferences`.
@@ -34,6 +48,8 @@ class SharedPreferencesFirebaseUpdateStore
     implements FirebaseUpdatePreferencesStore {
   static const String _skippedVersionKey = 'firebase_update_skipped_version';
   static const String _snoozedUntilMsKey = 'firebase_update_snoozed_until_ms';
+  static const String _snoozedForVersionKey =
+      'firebase_update_snoozed_for_version';
 
   @override
   Future<String?> getSkippedVersion() async {
@@ -71,5 +87,18 @@ class SharedPreferencesFirebaseUpdateStore
   Future<void> clearSnoozedUntil() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_snoozedUntilMsKey);
+    await prefs.remove(_snoozedForVersionKey);
+  }
+
+  @override
+  Future<String?> getSnoozedForVersion() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_snoozedForVersionKey);
+  }
+
+  @override
+  Future<void> setSnoozedForVersion(String version) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_snoozedForVersionKey, version);
   }
 }

@@ -19,6 +19,7 @@ One package to handle forced updates, optional updates, maintenance mode, and pa
 - [Remote Config Schema](#remote-config-schema)
 - [Payload Examples](#payload-examples)
 - [Update States](#update-states)
+- [How It Works](#how-it-works)
 - [Configuration](#configuration)
 - [Custom UI](#custom-ui)
 - [Reactive Widget](#reactive-widget)
@@ -192,6 +193,100 @@ If you want to go beyond the defaults, the next sections cover state handling, p
 | `maintenance` | Maintenance mode is active. Usage is blocked. |
 
 `state.isBlocking` is `true` for `forceUpdate` and `maintenance`.
+
+---
+
+## How It Works
+
+### State priority
+
+Every time the Remote Config payload is received or updated, the package resolves exactly one state. The resolution order is:
+
+```
+maintenance_message non-empty?  →  maintenance  (blocking)
+current < min_version?          →  forceUpdate  (blocking)
+current < latest_version?       →  optionalUpdate
+otherwise                       →  upToDate
+```
+
+Only one surface is shown at a time. If state changes while a dialog is already on screen, the existing dialog is dismissed first and the new one appears in its place.
+
+---
+
+### Maintenance mode
+
+Activated by setting `maintenance_message` to any non-empty string in the payload. The app is immediately gated — no update button, no store launch, just your message and a "try again" option. The dialog/sheet cannot be dismissed by the user.
+
+To lift maintenance, clear `maintenance_message` (set it to `""` or remove the field). The package detects the change in real time and dismisses the gate automatically.
+
+**Priority:** maintenance takes precedence over everything — even if `min_version` and `latest_version` are also set, the maintenance gate is shown first.
+
+---
+
+### Force update
+
+Triggered when `current_version < min_version`. The dialog/sheet blocks the app; the user can only tap "Update now" to be taken to the store. There is no dismiss, snooze, or skip.
+
+When you raise `min_version` above the user's current version, the force gate appears immediately (or on the next realtime RC push). When you lower it again so the user's version is no longer below the minimum, the gate dismisses automatically.
+
+**Snooze interaction:** if the user previously snoozed an optional update and a force update then comes in, the snooze is automatically cleared. Once the force constraint is lifted and state returns to `optionalUpdate`, the optional dialog appears immediately — the user was blocked by the server, not voluntarily deferring.
+
+---
+
+### Optional update
+
+Triggered when `min_version ≤ current_version < latest_version`. The dialog/sheet is dismissible. The user can:
+
+- **Update now** — taken to the store
+- **Later** — dismissed; behavior depends on `snoozeDuration` (see below)
+- **Skip this version** — permanently suppressed for this specific version (`showSkipVersion: true` required)
+
+---
+
+### Snooze
+
+Snooze controls how long an optional update stays hidden after the user taps "Later".
+
+| `snoozeDuration` set? | Behavior |
+|---|---|
+| No (default) | Dismissed for the current session only. Reappears on next app launch. |
+| Yes (e.g. `Duration(hours: 24)`) | Hidden for the specified duration, persisted across restarts. Reappears automatically when the timer expires — no restart required. |
+
+**Version-aware snooze:** the snooze is tied to the `latest_version` that was active when the user tapped "Later".
+
+- Same version offered again → snooze remains active until it expires
+- Newer version offered → snooze is immediately cleared and the new version is shown
+
+**Example:**
+```
+User snoozes optional 1.7.0 (24 h snooze active)
+→ Admin rolls 1.7.0 back, then serves 1.7.0 again → still snoozed ✓
+→ Admin bumps to 1.8.0 instead                    → snooze cleared, 1.8.0 shown ✓
+```
+
+---
+
+### Skip version
+
+When `showSkipVersion: true`, the optional prompt shows a "Skip this version" button. Tapping it permanently suppresses prompts for that specific version across all restarts (persisted via `shared_preferences` or your custom store). Cleared automatically when a newer `latest_version` is served.
+
+---
+
+### State transition summary
+
+```
+upToDate  ──► optionalUpdate   dialog appears
+          ──► forceUpdate       blocking gate appears; any active optional snooze is cleared
+          ──► maintenance       blocking gate appears
+
+forceUpdate ──► optionalUpdate  gate dismisses, optional shown (snooze not restored)
+            ──► upToDate        gate dismisses, nothing shown
+            ──► maintenance     gate replaced by maintenance gate
+
+optionalUpdate ──► forceUpdate  optional dialog dismissed, force gate appears
+               ──► maintenance  optional dialog dismissed, maintenance gate appears
+               ──► upToDate     optional dialog dismissed, nothing shown
+```
 
 ---
 
@@ -476,3 +571,7 @@ Requires `test/firebase_config/service-account.json` with `firebaseremoteconfig`
 ## License
 
 BSD-3-Clause © [Qoder](https://qoder.in)
+
+---
+
+Made with love in India 🇮🇳

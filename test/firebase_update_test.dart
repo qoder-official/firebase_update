@@ -341,6 +341,7 @@ void main() {
 class _InMemoryStore implements FirebaseUpdatePreferencesStore {
   String? _skippedVersion;
   DateTime? _snoozedUntil;
+  String? _snoozedForVersion;
 
   @override
   Future<String?> getSkippedVersion() async => _skippedVersion;
@@ -359,5 +360,15 @@ class _InMemoryStore implements FirebaseUpdatePreferencesStore {
   Future<void> setSnoozedUntil(DateTime until) async => _snoozedUntil = until;
 
   @override
-  Future<void> clearSnoozedUntil() async => _snoozedUntil = null;
+  Future<void> clearSnoozedUntil() async {
+    _snoozedUntil = null;
+    _snoozedForVersion = null;
+  }
+
+  @override
+  Future<String?> getSnoozedForVersion() async => _snoozedForVersion;
+
+  @override
+  Future<void> setSnoozedForVersion(String version) async =>
+      _snoozedForVersion = version;
 }

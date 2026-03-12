@@ -626,6 +626,90 @@ void main() {
   );
 
   testWidgets(
+    'snooze is cleared when a force update is presented — optional shows after force is lifted',
+    (tester) async {
+      // Regression: if a snooze was active (same latestVersion) and a force
+      // update was subsequently presented, rolling the minimum back to optional
+      // would silently suppress the optional dialog instead of showing it.
+      var now = DateTime(2024, 6, 1, 10, 0, 0);
+      final navigatorKey = GlobalKey<NavigatorState>();
+      await _init(
+        tester,
+        navigatorKey: navigatorKey,
+        useDialog: true,
+        snoozeDuration: const Duration(hours: 24),
+      );
+      FirebaseUpdate.instance.debugSetClock(() => now);
+
+      // Step 1: user sees optional update for 2.6.0 and snoozes it.
+      await _showOptionalUpdate(tester, latestVersion: '2.6.0');
+      expect(find.text('Update available'), findsOneWidget);
+      await tester.tap(find.text('Later'));
+      await tester.pumpAndSettle();
+      expect(find.text('Update available'), findsNothing);
+      expect(store.snoozedUntil, isNotNull); // persisted
+
+      // Step 2: admin raises minimum → force update.
+      await FirebaseUpdate.instance.applyPayload({
+        'min_version': '2.5.0',
+        'latest_version': '2.6.0',
+      });
+      await tester.pumpAndSettle();
+      expect(find.text('Update required'), findsOneWidget);
+      // Snooze must have been cleared when force was presented.
+      expect(store.snoozedUntil, isNull);
+
+      // Step 3: admin rolls minimum back — optional must appear immediately,
+      // not be suppressed by the now-cleared snooze.
+      await _showOptionalUpdate(tester, latestVersion: '2.6.0');
+      expect(find.text('Update available'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'snoozedForVersion is persisted and enables version-mismatch clearing after restart',
+    (tester) async {
+      // Regression: _snoozedForVersion was never saved to the preferences store.
+      // After restart the version-mismatch check was always skipped (null ≠ null
+      // is false), so a snooze for v2.6.0 silently persisted even when an
+      // optional update for v2.7.0 arrived in a new session.
+      var now = DateTime(2024, 6, 1, 10, 0, 0);
+      final navigatorKey = GlobalKey<NavigatorState>();
+      await _init(
+        tester,
+        navigatorKey: navigatorKey,
+        useDialog: true,
+        snoozeDuration: const Duration(hours: 24),
+      );
+      FirebaseUpdate.instance.debugSetClock(() => now);
+
+      // Snooze optional update for v2.6.0.
+      await _showOptionalUpdate(tester, latestVersion: '2.6.0');
+      await tester.tap(find.text('Later'));
+      await tester.pumpAndSettle();
+      expect(store.snoozedForVersion, '2.6.0'); // must be persisted
+
+      // Simulate restart — load persisted snooze (still within 24 h).
+      FirebaseUpdate.instance.debugReset();
+      await FirebaseUpdate.instance.initialize(
+        navigatorKey: navigatorKey,
+        config: FirebaseUpdateConfig(
+          currentVersion: '2.4.0',
+          useBottomSheetForOptionalUpdate: false,
+          snoozeDuration: const Duration(hours: 24),
+          preferencesStore: store,
+        ),
+      );
+      FirebaseUpdate.instance.debugSetClock(() => now);
+      await tester.pumpAndSettle();
+
+      // Offer a NEWER version — snooze for 2.6.0 must be cleared.
+      await _showOptionalUpdate(tester, latestVersion: '2.7.0');
+      expect(find.text('Update available'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
     'no snoozeDuration: Later dismisses for session only (re-appears on restart)',
     (tester) async {
       final navigatorKey = GlobalKey<NavigatorState>();
@@ -1208,6 +1292,7 @@ class _HarnessApp extends StatelessWidget {
 class _InMemoryStore implements FirebaseUpdatePreferencesStore {
   String? skippedVersion;
   DateTime? snoozedUntil;
+  String? snoozedForVersion;
 
   @override
   Future<String?> getSkippedVersion() async => skippedVersion;
@@ -1226,7 +1311,17 @@ class _InMemoryStore implements FirebaseUpdatePreferencesStore {
   Future<void> setSnoozedUntil(DateTime until) async => snoozedUntil = until;
 
   @override
-  Future<void> clearSnoozedUntil() async => snoozedUntil = null;
+  Future<void> clearSnoozedUntil() async {
+    snoozedUntil = null;
+    snoozedForVersion = null;
+  }
+
+  @override
+  Future<String?> getSnoozedForVersion() async => snoozedForVersion;
+
+  @override
+  Future<void> setSnoozedForVersion(String version) async =>
+      snoozedForVersion = version;
 }
 
 /// Fake [FirebaseUpdatePatchSource] for Shorebird tests.

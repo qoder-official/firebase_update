@@ -97,10 +97,12 @@ class FirebaseUpdate {
     _store = store;
     final skippedVersion = await store.getSkippedVersion();
     final snoozedUntil = await store.getSnoozedUntil();
+    final snoozedForVersion = await store.getSnoozedForVersion();
     _defaultUpdatePresenter.loadPersistedState(
       store: store,
       skippedVersion: skippedVersion,
       snoozedUntil: snoozedUntil,
+      snoozedForVersion: snoozedForVersion,
     );
 
     if (!_remoteConfigPayloadSource.isAvailable) {
