@@ -1,3 +1,9 @@
+## 1.0.6
+
+### Bug fixes
+- **Custom builder dismissal parity**: `FirebaseUpdatePresentationData.onLaterClick`, `onSkipClick`, and dismissible custom action callbacks now dismiss package-managed dialogs and sheets consistently when used inside custom `optionalUpdateWidget`, `forceUpdateWidget`, and `maintenanceWidget` builders. Previously the built-in UI auto-dismissed, but custom builders only received the state-update callback, so "Later" could snooze correctly while leaving the dialog visible unless the app manually popped it
+- **Blocking dialog recovery after external navigation**: Force-update and maintenance gates now re-present themselves if some unrelated navigator mutation removes the overlay route while the app is still in a blocking state. Previously the presenter could keep stale internal state and assume the gate was still active, leaving the app accessible until the next state change
+
 ## 1.0.5
 
 ### Bug fixes

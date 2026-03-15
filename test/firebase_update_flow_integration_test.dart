@@ -257,7 +257,44 @@ void main() {
     expect(find.text('Qoder custom update'), findsOneWidget);
     expect(find.text('Not now'), findsOneWidget);
     expect(find.text('Release notes'), findsNothing);
+
+    await tester.tap(find.text('Not now'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Qoder custom update'), findsNothing);
   });
+
+  testWidgets(
+    'force update re-appears after external navigator reset dismisses it',
+    (tester) async {
+      final navigatorKey = GlobalKey<NavigatorState>();
+      await _init(
+        tester,
+        navigatorKey: navigatorKey,
+        onStoreLaunch: () {},
+      );
+
+      await FirebaseUpdate.instance.applyPayload({
+        'min_version': '2.5.0',
+        'latest_version': '2.6.0',
+      });
+      await tester.pumpAndSettle();
+      expect(find.text('Update required'), findsOneWidget);
+
+      navigatorKey.currentState!.pushAndRemoveUntil<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => const Scaffold(body: Text('Login screen')),
+        ),
+        (_) => false,
+      );
+      await tester.pump();
+      await tester.pump();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Login screen'), findsOneWidget);
+      expect(find.text('Update required'), findsOneWidget);
+    },
+  );
 
   testWidgets('maintenance can be shown over an active update flow', (
     tester,

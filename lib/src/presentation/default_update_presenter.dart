@@ -40,6 +40,7 @@ class DefaultUpdatePresenter {
   GlobalKey<NavigatorState>? _lastNavigatorKey;
   FirebaseUpdateConfig? _lastConfig;
   FirebaseUpdateState? _lastOptionalState;
+  bool _allowNextDismissal = false;
 
   // ---------------------------------------------------------------------------
   // Concurrency guards
@@ -77,6 +78,7 @@ class DefaultUpdatePresenter {
     _lastNavigatorKey = null;
     _lastConfig = null;
     _lastOptionalState = null;
+    _allowNextDismissal = false;
     _store = null;
     _clock = DateTime.now;
     _clockOverridden = false;
@@ -180,6 +182,42 @@ class DefaultUpdatePresenter {
     });
   }
 
+  bool _isBlockingKind(FirebaseUpdateKind kind) =>
+      kind == FirebaseUpdateKind.forceUpdate ||
+      kind == FirebaseUpdateKind.maintenance;
+
+  FirebaseUpdatePresentationData _presentationDataForCustomWidget(
+    BuildContext context,
+    FirebaseUpdatePresentationData data,
+  ) {
+    VoidCallback? wrapCallback(
+      VoidCallback? callback,
+      bool shouldDismiss,
+    ) {
+      if (callback == null) return null;
+      final route = ModalRoute.of(context);
+      return () {
+        callback();
+        if (!shouldDismiss) return;
+        scheduleMicrotask(() {
+          if (!context.mounted) return;
+          if (route != null && !route.isCurrent) return;
+          Navigator.of(context, rootNavigator: true).maybePop();
+        });
+      };
+    }
+
+    return data.copyWith(
+      onUpdateClick:
+          wrapCallback(data.onUpdateClick, data.dismissOnUpdateClick),
+      dismissOnUpdateClick: false,
+      onLaterClick: wrapCallback(data.onLaterClick, data.dismissOnLaterClick),
+      dismissOnLaterClick: false,
+      onSkipClick: wrapCallback(data.onSkipClick, data.dismissOnSkipClick),
+      dismissOnSkipClick: false,
+    );
+  }
+
   void presentIfNeeded({
     required FirebaseUpdateState state,
     required FirebaseUpdateConfig config,
@@ -222,6 +260,7 @@ class DefaultUpdatePresenter {
           // maintenance dialogs use PopScope(canPop: false) and are
           // intentionally non-user-dismissable; only the presenter may
           // programmatically close them.
+          _allowNextDismissal = true;
           _isPresenting = false;
           _presentedKind = null;
           final context =
@@ -316,6 +355,7 @@ class DefaultUpdatePresenter {
         // An overlay is actually on the navigator — pop it so the new one
         // can take its place.  pop() is intentional: see the upToDate branch
         // above for the rationale.
+        _allowNextDismissal = true;
         Navigator.of(context, rootNavigator: true).pop();
         _isPresenting = false;
       }
@@ -371,8 +411,23 @@ class DefaultUpdatePresenter {
           case FirebaseUpdateKind.upToDate:
             break;
         }
-        config.onDialogDismissed?.call(state);
+        final wasExpectedDismissal = _allowNextDismissal;
+        _allowNextDismissal = false;
         _isPresenting = false;
+        if (_generation == gen &&
+            _isBlockingKind(state.kind) &&
+            !wasExpectedDismissal) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (_generation != gen) return;
+            presentIfNeeded(
+              state: state,
+              config: config,
+              navigatorKey: navigatorKey,
+            );
+          });
+          return;
+        }
+        config.onDialogDismissed?.call(state);
       }),
     );
   }
@@ -461,7 +516,10 @@ class DefaultUpdatePresenter {
         barrierColor: config.presentation.theme.barrierColor,
         builder: (dialogContext) => _BlurredModalWrapper(
           sigma: config.presentation.theme.dialogBackgroundBlurSigma,
-          child: config.optionalUpdateWidget?.call(dialogContext, data) ??
+          child: config.optionalUpdateWidget?.call(
+                dialogContext,
+                _presentationDataForCustomWidget(dialogContext, data),
+              ) ??
               _DefaultUpdateDialog(
                 data: data,
                 theme: config.presentation.theme,
@@ -528,7 +586,10 @@ class DefaultUpdatePresenter {
           canPop: false,
           child: _BlurredModalWrapper(
             sigma: config.presentation.theme.dialogBackgroundBlurSigma,
-            child: config.forceUpdateWidget?.call(dialogContext, data) ??
+            child: config.forceUpdateWidget?.call(
+                  dialogContext,
+                  _presentationDataForCustomWidget(dialogContext, data),
+                ) ??
                 _DefaultUpdateDialog(
                   data: data,
                   theme: config.presentation.theme,
@@ -568,7 +629,10 @@ class DefaultUpdatePresenter {
       barrierColor: config.presentation.theme.barrierColor ?? Colors.black54,
       transitionDuration: const Duration(milliseconds: 250),
       pageBuilder: (dialogContext, animation, secondaryAnimation) {
-        final child = customWidget?.call(dialogContext, data) ??
+        final child = customWidget?.call(
+              dialogContext,
+              _presentationDataForCustomWidget(dialogContext, data),
+            ) ??
             _DefaultUpdateSheet(
               data: data,
               theme: config.presentation.theme,
@@ -668,7 +732,10 @@ class DefaultUpdatePresenter {
           canPop: false,
           child: _BlurredModalWrapper(
             sigma: config.presentation.theme.dialogBackgroundBlurSigma,
-            child: config.maintenanceWidget?.call(dialogContext, data) ??
+            child: config.maintenanceWidget?.call(
+                  dialogContext,
+                  _presentationDataForCustomWidget(dialogContext, data),
+                ) ??
                 _DefaultUpdateDialog(
                   data: data,
                   theme: config.presentation.theme,
@@ -703,6 +770,7 @@ class DefaultUpdatePresenter {
     if (override != null) {
       override();
       if (context.mounted) {
+        _allowNextDismissal = true;
         Navigator.of(context, rootNavigator: true).maybePop();
       }
       return;
@@ -717,6 +785,7 @@ class DefaultUpdatePresenter {
     }
 
     if (didLaunch) {
+      _allowNextDismissal = true;
       Navigator.of(context, rootNavigator: true).maybePop();
     }
   }
@@ -737,7 +806,10 @@ class DefaultUpdatePresenter {
         // Snooze/skip logic is already in data.onLaterClick / data.onSkipClick;
         // dismissOnLaterClick and dismissOnSkipClick (both true by default)
         // cause the sheet widget to pop after calling the callback.
-        final child = config.optionalUpdateWidget?.call(dialogContext, data) ??
+        final child = config.optionalUpdateWidget?.call(
+              dialogContext,
+              _presentationDataForCustomWidget(dialogContext, data),
+            ) ??
             _DefaultUpdateSheet(
               data: data,
               theme: config.presentation.theme,
