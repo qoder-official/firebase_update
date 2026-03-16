@@ -20,14 +20,14 @@ Flutter force update, maintenance mode, patch notes, and custom update UI driven
   <img src="screenshots/optional_update_dialog.png" alt="Optional update dialog" width="180" />
   <img src="screenshots/optional_update_sheet.png" alt="Optional update sheet" width="180" />
   <img src="screenshots/force_update_dialog.png" alt="Force update dialog" width="180" />
-  <img src="screenshots/maintenance_dialog.png" alt="Maintenance dialog" width="180" />
+  <img src="screenshots/force_update_sheet.png" alt="Force update sheet" width="180" />
 </p>
 
 <p>
+  <img src="screenshots/maintenance_dialog.png" alt="Maintenance dialog" width="180" />
   <img src="screenshots/maintenance_sheet.png" alt="Maintenance sheet" width="180" />
   <img src="screenshots/maintenance_fullscreen.png" alt="Full-screen custom maintenance" width="180" />
   <img src="screenshots/patch_notes_expanded.png" alt="Expanded patch notes" width="180" />
-  <img src="screenshots/home_screen.png" alt="Example app home" width="180" />
 </p>
 
 ## Why this package
@@ -139,6 +139,120 @@ Only one state is active at a time:
 2. force update
 3. optional update
 4. up to date
+
+## Payload examples
+
+### Optional update
+
+Use this when you want to encourage upgrades without blocking the app.
+
+```json
+{
+  "min_version": "2.0.0",
+  "latest_version": "2.6.0",
+  "optional_update_title": "Update available",
+  "optional_update_message": "Version 2.6.0 is ready with a smoother experience.",
+  "patch_notes": "Faster startup · Cleaner onboarding · Bug fixes.",
+  "patch_notes_format": "text"
+}
+```
+
+<p>
+  <img src="screenshots/optional_update_dialog.png" alt="Optional update dialog" width="260" />
+  <img src="screenshots/optional_update_sheet.png" alt="Optional update sheet" width="260" />
+</p>
+
+### Force update
+
+Use this when the installed app version is no longer safe or compatible.
+
+```json
+{
+  "min_version": "2.5.0",
+  "latest_version": "2.6.0",
+  "force_update_message": "This release contains required security fixes.",
+  "patch_notes": "<ul><li>Critical security patches</li><li>Required backend compatibility</li></ul>",
+  "patch_notes_format": "html"
+}
+```
+
+<p>
+  <img src="screenshots/force_update_dialog.png" alt="Force update dialog" width="260" />
+  <img src="screenshots/force_update_sheet.png" alt="Force update sheet" width="260" />
+</p>
+
+### Maintenance mode
+
+Use this when you need to temporarily gate the app without shipping a new build.
+
+```json
+{
+  "maintenance_title": "Scheduled maintenance",
+  "maintenance_message": "We're upgrading our servers. We'll be back shortly."
+}
+```
+
+<p>
+  <img src="screenshots/maintenance_dialog.png" alt="Maintenance dialog" width="260" />
+  <img src="screenshots/maintenance_sheet.png" alt="Maintenance sheet" width="260" />
+</p>
+
+### Custom full-screen maintenance
+
+Use the same maintenance payload, but replace the package default surface with your own branded takeover.
+
+```dart
+FirebaseUpdateConfig(
+  onBeforePresent: (context, state) async {
+    await precacheImage(
+      const NetworkImage('https://example.com/maintenance.gif'),
+      context,
+    );
+  },
+  maintenanceWidget: (context, data) => MyMaintenanceTakeover(data: data),
+)
+```
+
+<img src="screenshots/maintenance_fullscreen.png" alt="Custom full-screen maintenance takeover" width="320" />
+
+### Long patch notes
+
+When patch notes run long, the default UI collapses the content and expands it in-place with `Read more` / `Show less`.
+
+```json
+{
+  "min_version": "2.0.0",
+  "latest_version": "2.6.0",
+  "optional_update_title": "Update available",
+  "optional_update_message": "Version 2.6.0 has arrived.",
+  "patch_notes": "Redesigned home screen with cleaner navigation bar\nDark mode across all screens and components\n40% faster app startup time\nNew notifications centre with grouped alerts and filters\nImproved search with smart suggestions and history\nOffline mode for core reading and browsing features\nFull VoiceOver and TalkBack accessibility support\nFixed checkout edge cases on older Android devices\nApple Pay and Google Pay now available in all regions",
+  "patch_notes_format": "text"
+}
+```
+
+<img src="screenshots/patch_notes_expanded.png" alt="Expanded patch notes" width="320" />
+
+## How it works
+
+### State resolution
+
+Every time the payload changes, the package resolves exactly one state.
+
+```text
+maintenance_message non-empty?  -> maintenance
+current < min_version?          -> forceUpdate
+current < latest_version?       -> optionalUpdate
+otherwise                       -> upToDate
+```
+
+Only one overlay is shown at a time. If the state changes while one is already visible, the existing overlay is dismissed first and the higher-priority one takes its place.
+
+### Snooze and skip-version
+
+- `Later` with no `snoozeDuration` dismisses the optional update for the current app session
+- `snoozeDuration` persists the dismiss until the timer expires
+- snooze is version-aware, so a newer `latest_version` clears the older snooze immediately
+- `showSkipVersion: true` adds a persistent "Skip this version" action for optional updates
 
 ## Common configurations
 

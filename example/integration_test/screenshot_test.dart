@@ -41,6 +41,8 @@ void main() {
     );
     await tester.pumpWidget(const FirebaseUpdateExampleApp());
     await tester.pumpAndSettle();
+    await _waitFor(tester, find.text('firebase_update'));
+    await tester.pump(const Duration(milliseconds: 800));
     await _captureScreenshot(binding, tester, 'home_screen');
   });
 
