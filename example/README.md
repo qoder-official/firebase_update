@@ -5,19 +5,19 @@ This app is the local showcase for the `firebase_update` package.
 ## Purpose
 
 - prove the package can be consumed through a path dependency
-- provide a stable place to demo the planned public API
-- evolve into the real integration testbed once Firebase Remote Config support lands
+- demonstrate the refreshed default overlays in a branded environment
+- provide a hands-on control deck for update, force, maintenance, snooze, patch-note, and custom takeover states
+- act as the visual reference for screenshot capture and integration tests
 
 ## Current state
 
 - app id: `com.qoder.firebaseupdateexample`
 - package dependency: local path to `../`
-- runtime package behavior: stubbed
-- UI purpose: explain the package direction and planned config contract
+- runtime package behavior: real package initialization with local payload simulation
+- UI purpose: showcase the package-managed overlays, long-content behavior, live payload testing, and a custom full-screen maintenance takeover with preloaded network media
 
-## Next upgrades
+## What to try
 
-- add Firebase setup
-- wire real Remote Config reads
-- demonstrate optional update, force update, and maintenance flows
-- add patch-note rendering examples
+- trigger `Optional dialog`, `Force dialog`, and `Maintenance dialog` from the control deck
+- open `Long content & custom surfaces` to stress patch notes, read-more behavior, and the full-screen maintenance example
+- paste raw JSON into the live tester and verify how payload changes resolve on screen

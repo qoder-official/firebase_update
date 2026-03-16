@@ -1,4 +1,5 @@
 import 'package:firebase_update/firebase_update.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
@@ -104,7 +105,12 @@ void main() {
       await _waitFor(tester, find.text('Update required'));
 
       expect(find.text('Update required'), findsOneWidget);
+      expect(find.text('Debug back'), findsOneWidget);
       expect(find.text('Later'), findsNothing);
+
+      await tester.tap(find.text('Debug back'));
+      await tester.pumpAndSettle();
+      expect(find.text('Update required'), findsNothing);
     },
   );
 
@@ -125,7 +131,12 @@ void main() {
       await _waitFor(tester, find.text('Update required'));
 
       expect(find.text('Update required'), findsOneWidget);
+      expect(find.text('Debug back'), findsOneWidget);
       expect(find.text('Later'), findsNothing);
+
+      await tester.tap(find.text('Debug back'));
+      await tester.pumpAndSettle();
+      expect(find.text('Update required'), findsNothing);
     },
   );
 
@@ -243,6 +254,34 @@ void main() {
       expect(find.text('Scheduled maintenance'), findsOneWidget);
       expect(find.text('Please try again shortly.'), findsOneWidget);
       expect(find.text('Later'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'full-screen maintenance example covers the app with a blocking custom surface',
+    (tester) async {
+      await initializeExampleFirebaseUpdate(initializeFirebase: false);
+      await tester.pumpWidget(const FirebaseUpdateExampleApp());
+      await tester.pumpAndSettle();
+
+      final button = find.byKey(ExampleAppKeys.maintenanceFullscreenButton);
+      await tester.dragUntilVisible(
+        button,
+        find.byType(Scrollable).first,
+        const Offset(0, -220),
+      );
+      await tester.ensureVisible(button);
+      await tester.pumpAndSettle();
+      await tester.tap(button);
+      await _waitFor(tester, find.text('Platform maintenance'));
+
+      expect(find.text('Platform maintenance'), findsOneWidget);
+      expect(find.text('Status: under maintenance'), findsOneWidget);
+      expect(find.text('Debug back'), findsOneWidget);
+
+      await tester.tap(find.text('Debug back'));
+      await tester.pumpAndSettle();
+      expect(find.text('Platform maintenance'), findsNothing);
     },
   );
 }

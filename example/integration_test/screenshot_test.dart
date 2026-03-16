@@ -35,7 +35,10 @@ void main() {
   });
 
   testWidgets('screenshot: home screen', (tester) async {
-    await initializeExampleFirebaseUpdate(initializeFirebase: false);
+    await initializeExampleFirebaseUpdate(
+      initializeFirebase: false,
+      allowDebugBack: false,
+    );
     await tester.pumpWidget(const FirebaseUpdateExampleApp());
     await tester.pumpAndSettle();
     await _captureScreenshot(binding, tester, 'home_screen');
@@ -44,6 +47,7 @@ void main() {
   testWidgets('screenshot: optional update dialog', (tester) async {
     await initializeExampleFirebaseUpdate(
       initializeFirebase: false,
+      allowDebugBack: false,
       useBottomSheetForOptionalUpdate: false,
     );
     await tester.pumpWidget(const FirebaseUpdateExampleApp());
@@ -65,6 +69,7 @@ void main() {
   testWidgets('screenshot: optional update sheet', (tester) async {
     await initializeExampleFirebaseUpdate(
       initializeFirebase: false,
+      allowDebugBack: false,
       useBottomSheetForOptionalUpdate: true,
     );
     await tester.pumpWidget(const FirebaseUpdateExampleApp());
@@ -86,6 +91,7 @@ void main() {
   testWidgets('screenshot: force update dialog', (tester) async {
     await initializeExampleFirebaseUpdate(
       initializeFirebase: false,
+      allowDebugBack: false,
       useBottomSheetForForceUpdate: false,
     );
     await tester.pumpWidget(const FirebaseUpdateExampleApp());
@@ -100,12 +106,14 @@ void main() {
       'patch_notes_format': 'html',
     });
     await _waitFor(tester, find.text('Update required'));
+    expect(find.text('Debug back'), findsNothing);
     await _captureScreenshot(binding, tester, 'force_update_dialog');
   });
 
   testWidgets('screenshot: force update sheet', (tester) async {
     await initializeExampleFirebaseUpdate(
       initializeFirebase: false,
+      allowDebugBack: false,
       useBottomSheetForForceUpdate: true,
     );
     await tester.pumpWidget(const FirebaseUpdateExampleApp());
@@ -120,12 +128,14 @@ void main() {
       'patch_notes_format': 'html',
     });
     await _waitFor(tester, find.text('Update required'));
+    expect(find.text('Debug back'), findsNothing);
     await _captureScreenshot(binding, tester, 'force_update_sheet');
   });
 
   testWidgets('screenshot: maintenance dialog', (tester) async {
     await initializeExampleFirebaseUpdate(
       initializeFirebase: false,
+      allowDebugBack: false,
       useBottomSheetForMaintenance: false,
     );
     await tester.pumpWidget(const FirebaseUpdateExampleApp());
@@ -137,12 +147,14 @@ void main() {
           "We're upgrading our servers. We'll be back shortly.",
     });
     await _waitFor(tester, find.text('Scheduled maintenance'));
+    expect(find.text('Debug back'), findsNothing);
     await _captureScreenshot(binding, tester, 'maintenance_dialog');
   });
 
   testWidgets('screenshot: maintenance sheet', (tester) async {
     await initializeExampleFirebaseUpdate(
       initializeFirebase: false,
+      allowDebugBack: false,
       useBottomSheetForMaintenance: true,
     );
     await tester.pumpWidget(const FirebaseUpdateExampleApp());
@@ -154,12 +166,35 @@ void main() {
           "We're upgrading our servers. We'll be back shortly.",
     });
     await _waitFor(tester, find.text('Scheduled maintenance'));
+    expect(find.text('Debug back'), findsNothing);
     await _captureScreenshot(binding, tester, 'maintenance_sheet');
+  });
+
+  testWidgets('screenshot: maintenance fullscreen', (tester) async {
+    await initializeExampleFirebaseUpdate(
+      initializeFirebase: false,
+      allowDebugBack: false,
+      useBottomSheetForMaintenance: false,
+      maintenanceWidget: buildExampleFullscreenMaintenance,
+      onBeforePresent: precacheExampleMaintenanceMedia(),
+    );
+    await tester.pumpWidget(const FirebaseUpdateExampleApp());
+    await tester.pumpAndSettle();
+
+    await FirebaseUpdate.instance.applyPayload({
+      'maintenance_title': 'Platform maintenance',
+      'maintenance_message':
+          'Core systems are temporarily offline while we roll out backend upgrades.',
+    });
+    await _waitFor(tester, find.text('Platform maintenance'));
+    expect(find.text('Debug back'), findsNothing);
+    await _captureScreenshot(binding, tester, 'maintenance_fullscreen');
   });
 
   testWidgets('screenshot: patch notes expanded', (tester) async {
     await initializeExampleFirebaseUpdate(
       initializeFirebase: false,
+      allowDebugBack: false,
       useBottomSheetForOptionalUpdate: false,
     );
     await tester.pumpWidget(const FirebaseUpdateExampleApp());

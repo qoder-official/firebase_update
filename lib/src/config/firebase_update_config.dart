@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
@@ -30,6 +32,11 @@ import 'firebase_update_store_urls.dart';
 ///   ),
 /// )
 /// ```
+typedef FirebaseUpdateBeforePresentCallback = FutureOr<void> Function(
+  BuildContext context,
+  FirebaseUpdateState state,
+);
+
 @immutable
 class FirebaseUpdateConfig {
   const FirebaseUpdateConfig({
@@ -41,6 +48,7 @@ class FirebaseUpdateConfig {
     this.minimumFetchInterval = const Duration(hours: 12),
     this.listenToRealtimeUpdates = true,
     this.enableDefaultPresentation = true,
+    this.allowDebugBack = false,
     this.useBottomSheetForOptionalUpdate,
     this.useBottomSheetForForceUpdate = false,
     this.useBottomSheetForMaintenance = false,
@@ -52,6 +60,7 @@ class FirebaseUpdateConfig {
     this.onForceUpdateTap,
     this.onOptionalUpdateTap,
     this.onOptionalLaterTap,
+    this.onBeforePresent,
     this.onDialogShown,
     this.onDialogDismissed,
     this.onSnoozed,
@@ -113,6 +122,17 @@ class FirebaseUpdateConfig {
   /// maintenance UI through the navigator key. Set to `false` if you want to
   /// handle all presentation through [FirebaseUpdateBuilder].
   final bool enableDefaultPresentation;
+
+  /// Shows a subtle debug-only escape hatch for blocking package UI.
+  ///
+  /// When `true`, force-update and maintenance presentations include a small
+  /// underlined "Debug back" action outside the dialog/sheet, but only while
+  /// the app is running in Flutter debug mode. This is intended for internal
+  /// development workflows where a blocking gate would otherwise prevent local
+  /// testing.
+  ///
+  /// It has no effect in profile or release builds.
+  final bool allowDebugBack;
 
   /// When `true`, optional updates are shown as a bottom sheet. When `false`,
   /// a dialog is used. Falls back to [FirebaseUpdatePresentation.useBottomSheetForOptionalUpdate]
@@ -179,6 +199,14 @@ class FirebaseUpdateConfig {
   ///
   /// Fires in addition to the default snooze behavior.
   final VoidCallback? onOptionalLaterTap;
+
+  /// Called and awaited before any package-managed overlay is presented.
+  ///
+  /// Use this to preload network GIFs, images, or any other async resources
+  /// that a custom `forceUpdateWidget`, `optionalUpdateWidget`, or
+  /// `maintenanceWidget` depends on. If it throws, the error is ignored and the
+  /// overlay is still shown.
+  final FirebaseUpdateBeforePresentCallback? onBeforePresent;
 
   // ---------------------------------------------------------------------------
   // Analytics callbacks (zero new dependencies)

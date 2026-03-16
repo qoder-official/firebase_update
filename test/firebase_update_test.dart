@@ -257,6 +257,11 @@ void main() {
     expect(config.showSkipVersion, isFalse);
   });
 
+  test('allowDebugBack defaults to false', () {
+    const config = FirebaseUpdateConfig();
+    expect(config.allowDebugBack, isFalse);
+  });
+
   test('patchSource defaults to null', () {
     const config = FirebaseUpdateConfig();
     expect(config.patchSource, isNull);

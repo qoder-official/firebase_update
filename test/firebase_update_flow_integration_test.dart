@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_update/firebase_update.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -113,6 +115,25 @@ void main() {
   });
 
   testWidgets(
+    'tapping outside optional update sheet behaves like Later for session dismiss',
+    (tester) async {
+      final navigatorKey = GlobalKey<NavigatorState>();
+      await _init(tester, navigatorKey: navigatorKey, useDialog: false);
+
+      await _showOptionalUpdate(tester);
+      expect(find.text('Update available'), findsOneWidget);
+
+      await tester.tapAt(const Offset(8, 8));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Update available'), findsNothing);
+
+      await _showOptionalUpdate(tester);
+      expect(find.text('Update available'), findsNothing);
+    },
+  );
+
+  testWidgets(
       'optional update shows as dialog by default (no bottom-sheet flag)', (
     tester,
   ) async {
@@ -199,6 +220,86 @@ void main() {
     expect(find.text('Update required'), findsOneWidget);
     expect(find.text('Later'), findsNothing);
   });
+
+  testWidgets(
+    'allowDebugBack shows debug escape for force update and suppresses same blocking state',
+    (tester) async {
+      final navigatorKey = GlobalKey<NavigatorState>();
+      await _init(
+        tester,
+        navigatorKey: navigatorKey,
+        config: FirebaseUpdateConfig(
+          currentVersion: '2.4.0',
+          allowDebugBack: true,
+          preferencesStore: store,
+        ),
+      );
+
+      await FirebaseUpdate.instance.applyPayload({
+        'min_version': '2.5.0',
+        'latest_version': '2.6.0',
+      });
+      await tester.pumpAndSettle();
+
+      expect(find.text('Update required'), findsOneWidget);
+      expect(find.text('Debug back'), findsOneWidget);
+
+      await tester.tap(find.text('Debug back'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Update required'), findsNothing);
+
+      await FirebaseUpdate.instance.applyPayload({
+        'min_version': '2.5.0',
+        'latest_version': '2.6.0',
+      });
+      await tester.pumpAndSettle();
+
+      expect(find.text('Update required'), findsNothing);
+
+      await FirebaseUpdate.instance.applyPayload({
+        'maintenance_title': 'Scheduled maintenance',
+        'maintenance_message': 'Please try again shortly.',
+      });
+      await tester.pumpAndSettle();
+
+      expect(find.text('Scheduled maintenance'), findsOneWidget);
+      expect(find.text('Debug back'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'onBeforePresent is awaited before showing an overlay',
+    (tester) async {
+      final navigatorKey = GlobalKey<NavigatorState>();
+      final completer = Completer<void>();
+
+      await _init(
+        tester,
+        navigatorKey: navigatorKey,
+        config: FirebaseUpdateConfig(
+          currentVersion: '2.4.0',
+          preferencesStore: store,
+          onBeforePresent: (context, state) async {
+            expect(state.kind, FirebaseUpdateKind.optionalUpdate);
+            await completer.future;
+          },
+        ),
+      );
+
+      await FirebaseUpdate.instance.applyPayload({
+        'min_version': '2.0.0',
+        'latest_version': '2.6.0',
+      });
+
+      await tester.pump();
+      expect(find.text('Update available'), findsNothing);
+
+      completer.complete();
+      await tester.pumpAndSettle();
+      expect(find.text('Update available'), findsOneWidget);
+    },
+  );
 
   testWidgets(
       'optional update re-appears for newer version after session dismiss', (
@@ -1126,6 +1227,35 @@ void main() {
 
     await _showOptionalUpdate(tester);
     await tester.tap(find.text('Later'));
+    await tester.pumpAndSettle();
+
+    expect(snoozed, hasLength(1));
+    expect(snoozed.first.$1, '2.6.0');
+    expect(snoozed.first.$2, const Duration(hours: 24));
+  });
+
+  testWidgets(
+      'onSnoozed fires when optional update sheet is dismissed via barrier',
+      (tester) async {
+    final snoozed = <(String, Duration)>[];
+    final navigatorKey = GlobalKey<NavigatorState>();
+    final now = DateTime(2024, 1, 1);
+    await _init(
+      tester,
+      navigatorKey: navigatorKey,
+      useDialog: false,
+      config: FirebaseUpdateConfig(
+        currentVersion: '2.4.0',
+        useBottomSheetForOptionalUpdate: true,
+        snoozeDuration: const Duration(hours: 24),
+        onSnoozed: (v, d) => snoozed.add((v, d)),
+        preferencesStore: store,
+      ),
+    );
+    FirebaseUpdate.instance.debugSetClock(() => now);
+
+    await _showOptionalUpdate(tester);
+    await tester.tapAt(const Offset(8, 8));
     await tester.pumpAndSettle();
 
     expect(snoozed, hasLength(1));

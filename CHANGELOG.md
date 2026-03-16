@@ -1,8 +1,20 @@
 ## 1.0.6
 
+### UI refresh
+- **Refined default overlays**: Refreshed the package-managed dialog and sheet UI for optional update, force update, and maintenance flows. The latest pass simplifies the header area down to a single centered icon, tightens vertical rhythm around the title and notes, and removes the extra status/version strip so the defaults feel cleaner and easier to scan
+- **Balanced maintenance spacing**: Maintenance dialogs and sheets now trim the empty action gap and use cleaner top/bottom padding when no buttons are rendered, so the default blocking maintenance UI no longer looks vertically off-balance
+- **Overlay preloading hook**: Added `onBeforePresent` to `FirebaseUpdateConfig`, allowing apps to await GIF/image precaching or any other async preparation before a package-managed overlay is shown
+- **More theme control**: Added new optional `FirebaseUpdatePresentationTheme` tokens for `panelGradient`, `heroGlowColor`, `noteBackgroundColor`, `statusBackgroundColor`, and `statusForegroundColor` so apps can tune the richer default UI without replacing it entirely
+- **Optional sheet dismiss parity**: Tapping outside a dismissible optional-update bottom sheet now follows the same path as pressing `Later`, including session-dismiss and `snoozeDuration` timer behavior. Previously a barrier tap could close the sheet without starting the expected snooze flow
+- **Expanded sheet safety**: Long patch-note bottom sheets now keep their action row above the safe area while the notes body scrolls independently, so `Read more` / `Show less` does not push buttons off-screen
+- **Simplified example app**: Reworked the example app into a cleaner, lighter demo surface focused on state simulation, long-content testing, and live JSON preview, and removed the customization preview section
+- **Full-screen maintenance example**: Rebuilt the example app's custom maintenance takeover using a Stitch-guided full-screen layout with a preloaded network GIF, and moved the demo alongside the long-content/custom-surface examples instead of the basic simulator grid
+- **Debug back escape hatch**: Added `allowDebugBack` to `FirebaseUpdateConfig`. When enabled, force-update and maintenance presentations show a subtle debug-only back action outside the blocking overlay in Flutter debug mode, allowing developers to temporarily bypass the gate locally without affecting release builds. The example app now enables this for blocking simulator previews and live JSON testing, while screenshot capture pins it off so README assets stay clean
+
 ### Bug fixes
 - **Custom builder dismissal parity**: `FirebaseUpdatePresentationData.onLaterClick`, `onSkipClick`, and dismissible custom action callbacks now dismiss package-managed dialogs and sheets consistently when used inside custom `optionalUpdateWidget`, `forceUpdateWidget`, and `maintenanceWidget` builders. Previously the built-in UI auto-dismissed, but custom builders only received the state-update callback, so "Later" could snooze correctly while leaving the dialog visible unless the app manually popped it
 - **Blocking dialog recovery after external navigation**: Force-update and maintenance gates now re-present themselves if some unrelated navigator mutation removes the overlay route while the app is still in a blocking state. Previously the presenter could keep stale internal state and assume the gate was still active, leaving the app accessible until the next state change
+- **Full-screen maintenance rendering cleanup**: The example app's full-screen maintenance takeover now renders inside a proper Material surface instead of a raw decorated widget tree, fixing the yellow debug underlines/text styling glitches and making the takeover behave like a real screen. The blocking dialog debug-back control was also repositioned as a screen overlay so custom full-screen maintenance widgets are not forced into centered-card layout constraints
 
 ## 1.0.5
 

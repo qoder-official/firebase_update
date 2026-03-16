@@ -41,6 +41,7 @@ class DefaultUpdatePresenter {
   FirebaseUpdateConfig? _lastConfig;
   FirebaseUpdateState? _lastOptionalState;
   bool _allowNextDismissal = false;
+  String? _debugDismissedBlockingSignature;
 
   // ---------------------------------------------------------------------------
   // Concurrency guards
@@ -79,6 +80,7 @@ class DefaultUpdatePresenter {
     _lastConfig = null;
     _lastOptionalState = null;
     _allowNextDismissal = false;
+    _debugDismissedBlockingSignature = null;
     _store = null;
     _clock = DateTime.now;
     _clockOverridden = false;
@@ -186,6 +188,50 @@ class DefaultUpdatePresenter {
       kind == FirebaseUpdateKind.forceUpdate ||
       kind == FirebaseUpdateKind.maintenance;
 
+  bool _showsDebugBack(FirebaseUpdateConfig config) =>
+      config.allowDebugBack && kDebugMode;
+
+  String _blockingStateSignature(FirebaseUpdateState state) {
+    return [
+      state.kind.name,
+      state.title ?? '',
+      state.currentVersion ?? '',
+      state.minimumVersion ?? '',
+      state.latestVersion ?? '',
+      state.message ?? '',
+      state.maintenanceTitle ?? '',
+      state.maintenanceMessage ?? '',
+      state.patchNotes ?? '',
+      state.patchNotesFormat.name,
+    ].join('|');
+  }
+
+  void _dismissBlockingForDebug(
+    BuildContext context,
+    FirebaseUpdateState state,
+  ) {
+    _debugDismissedBlockingSignature = _blockingStateSignature(state);
+    _allowNextDismissal = true;
+    _isPresenting = false;
+    _presentedKind = null;
+    Navigator.of(context, rootNavigator: true).pop();
+  }
+
+  Future<void> _runBeforePresentHook(
+    BuildContext context,
+    FirebaseUpdateConfig config,
+    FirebaseUpdateState state,
+  ) async {
+    final callback = config.onBeforePresent;
+    if (callback == null) return;
+
+    try {
+      await callback(context, state);
+    } catch (_) {
+      // Asset preloading should not block a critical maintenance/update gate.
+    }
+  }
+
   FirebaseUpdatePresentationData _presentationDataForCustomWidget(
     BuildContext context,
     FirebaseUpdatePresentationData data,
@@ -249,6 +295,7 @@ class DefaultUpdatePresenter {
 
     if (state.kind == FirebaseUpdateKind.idle ||
         state.kind == FirebaseUpdateKind.upToDate) {
+      _debugDismissedBlockingSignature = null;
       if (state.kind == FirebaseUpdateKind.upToDate) {
         _generation++;
         _sessionDismissedVersion = null;
@@ -283,6 +330,18 @@ class DefaultUpdatePresenter {
         }
       }
       return;
+    }
+
+    if (state.isBlocking) {
+      final signature = _blockingStateSignature(state);
+      if (_debugDismissedBlockingSignature == signature) {
+        return;
+      }
+      if (_debugDismissedBlockingSignature != null) {
+        _debugDismissedBlockingSignature = null;
+      }
+    } else {
+      _debugDismissedBlockingSignature = null;
     }
 
     // Clear persistent skip, session dismiss, and snooze if a newer version is offered.
@@ -393,6 +452,12 @@ class DefaultUpdatePresenter {
         // any concurrent presentIfNeeded call runs, _isPresenting is already
         // true and the navigator has the overlay in its stack.
         _isPresenting = true;
+        await _runBeforePresentHook(context, config, state);
+        if (!context.mounted || _generation != gen) {
+          if (_generation == gen) _presentedKind = null;
+          _isPresenting = false;
+          return;
+        }
         config.onDialogShown?.call(state);
         switch (state.kind) {
           case FirebaseUpdateKind.optionalUpdate:
@@ -574,6 +639,7 @@ class DefaultUpdatePresenter {
         config: config,
         data: data,
         customWidget: config.forceUpdateWidget,
+        state: state,
       );
     } else {
       await showDialog<void>(
@@ -584,8 +650,10 @@ class DefaultUpdatePresenter {
         barrierColor: config.presentation.theme.barrierColor,
         builder: (dialogContext) => PopScope(
           canPop: false,
-          child: _BlurredModalWrapper(
-            sigma: config.presentation.theme.dialogBackgroundBlurSigma,
+          child: _buildBlockingDialogWrapper(
+            context: dialogContext,
+            config: config,
+            state: state,
             child: config.forceUpdateWidget?.call(
                   dialogContext,
                   _presentationDataForCustomWidget(dialogContext, data),
@@ -607,6 +675,7 @@ class DefaultUpdatePresenter {
                   showLessLabel:
                       config.presentation.labels.showLess ?? 'Show less',
                 ),
+            sigma: config.presentation.theme.dialogBackgroundBlurSigma,
           ),
         ),
       );
@@ -620,6 +689,7 @@ class DefaultUpdatePresenter {
     required FirebaseUpdateConfig config,
     required FirebaseUpdatePresentationData data,
     required FirebaseUpdateViewBuilder? customWidget,
+    required FirebaseUpdateState state,
   }) async {
     await showGeneralDialog<void>(
       context: context,
@@ -671,7 +741,20 @@ class DefaultUpdatePresenter {
               Column(
                 mainAxisAlignment: MainAxisAlignment.end,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [Material(color: Colors.transparent, child: child)],
+                children: [
+                  if (_showsDebugBack(config))
+                    SafeArea(
+                      top: false,
+                      child: Center(
+                        child: _DebugBackButton(
+                          onPressed: () =>
+                              _dismissBlockingForDebug(dialogContext, state),
+                        ),
+                      ),
+                    ),
+                  if (_showsDebugBack(config)) const SizedBox(height: 8),
+                  Material(color: Colors.transparent, child: child),
+                ],
               ),
             ],
           ),
@@ -720,6 +803,7 @@ class DefaultUpdatePresenter {
         config: config,
         data: data,
         customWidget: config.maintenanceWidget,
+        state: state,
       );
     } else {
       await showDialog<void>(
@@ -730,8 +814,10 @@ class DefaultUpdatePresenter {
         barrierColor: config.presentation.theme.barrierColor,
         builder: (dialogContext) => PopScope(
           canPop: false,
-          child: _BlurredModalWrapper(
-            sigma: config.presentation.theme.dialogBackgroundBlurSigma,
+          child: _buildBlockingDialogWrapper(
+            context: dialogContext,
+            config: config,
+            state: state,
             child: config.maintenanceWidget?.call(
                   dialogContext,
                   _presentationDataForCustomWidget(dialogContext, data),
@@ -753,6 +839,7 @@ class DefaultUpdatePresenter {
                   showLessLabel:
                       config.presentation.labels.showLess ?? 'Show less',
                 ),
+            sigma: config.presentation.theme.dialogBackgroundBlurSigma,
           ),
         ),
       );
@@ -795,6 +882,28 @@ class DefaultUpdatePresenter {
     required FirebaseUpdateConfig config,
     required FirebaseUpdatePresentationData data,
   }) async {
+    var dismissedByExplicitAction = false;
+    final wrappedData = data.copyWith(
+      onUpdateClick: data.onUpdateClick == null
+          ? null
+          : () {
+              dismissedByExplicitAction = true;
+              data.onUpdateClick!.call();
+            },
+      onLaterClick: data.onLaterClick == null
+          ? null
+          : () {
+              dismissedByExplicitAction = true;
+              data.onLaterClick!.call();
+            },
+      onSkipClick: data.onSkipClick == null
+          ? null
+          : () {
+              dismissedByExplicitAction = true;
+              data.onSkipClick!.call();
+            },
+    );
+
     await showGeneralDialog<void>(
       context: context,
       useRootNavigator: true,
@@ -808,10 +917,10 @@ class DefaultUpdatePresenter {
         // cause the sheet widget to pop after calling the callback.
         final child = config.optionalUpdateWidget?.call(
               dialogContext,
-              _presentationDataForCustomWidget(dialogContext, data),
+              _presentationDataForCustomWidget(dialogContext, wrappedData),
             ) ??
             _DefaultUpdateSheet(
-              data: data,
+              data: wrappedData,
               theme: config.presentation.theme,
               iconBuilder: config.presentation.iconBuilder,
               alignment: config.presentation.contentAlignment ??
@@ -866,6 +975,13 @@ class DefaultUpdatePresenter {
         );
       },
     );
+
+    // Dismissing the optional sheet by tapping the barrier should follow the
+    // same code path as the "Later" action so session-dismiss / snooze state
+    // stays consistent with the visible affordance.
+    if (!dismissedByExplicitAction) {
+      data.onLaterClick?.call();
+    }
   }
 
   Future<void> _presentShorebirdPatch(
@@ -1049,6 +1165,38 @@ class DefaultUpdatePresenter {
         return null;
     }
   }
+
+  Widget _buildBlockingDialogWrapper({
+    required BuildContext context,
+    required FirebaseUpdateConfig config,
+    required FirebaseUpdateState state,
+    required Widget child,
+    double? sigma,
+  }) {
+    return _BlurredModalWrapper(
+      sigma: sigma,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Align(
+            alignment: Alignment.center,
+            child: child,
+          ),
+          if (_showsDebugBack(config))
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 28 + MediaQuery.paddingOf(context).bottom,
+              child: Center(
+                child: _DebugBackButton(
+                  onPressed: () => _dismissBlockingForDebug(context, state),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 }
 
 class _BlurredModalWrapper extends StatelessWidget {
@@ -1077,6 +1225,33 @@ class _BlurredModalWrapper extends StatelessWidget {
         ),
         Center(child: child),
       ],
+    );
+  }
+}
+
+class _DebugBackButton extends StatelessWidget {
+  const _DebugBackButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: Colors.white.withValues(alpha: 0.82),
+          decoration: TextDecoration.underline,
+          decorationColor: Colors.white.withValues(alpha: 0.65),
+          fontWeight: FontWeight.w500,
+        );
+
+    return TextButton(
+      onPressed: onPressed,
+      style: TextButton.styleFrom(
+        foregroundColor: Colors.white.withValues(alpha: 0.82),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        visualDensity: VisualDensity.compact,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+      child: Text('Debug back', style: style),
     );
   }
 }
@@ -1273,16 +1448,16 @@ class _DefaultUpdatePanel extends StatelessWidget {
   final bool scrollable;
   final double extraBottomPadding;
 
-  Alignment get _iconAlignment {
-    switch (alignment) {
-      case FirebaseUpdateContentAlignment.start:
-        return Alignment.centerLeft;
-      case FirebaseUpdateContentAlignment.center:
-        return Alignment.center;
-      case FirebaseUpdateContentAlignment.end:
-        return Alignment.centerRight;
-    }
-  }
+  bool get _hasPrimaryAction => data.onUpdateClick != null;
+
+  bool get _hasSecondaryAction =>
+      data.secondaryLabel != null && data.onLaterClick != null;
+
+  bool get _hasTertiaryAction =>
+      data.tertiaryLabel != null && data.onSkipClick != null;
+
+  bool get _hasAnyActions =>
+      _hasPrimaryAction || _hasSecondaryAction || _hasTertiaryAction;
 
   CrossAxisAlignment get _crossAxisAlignment {
     switch (alignment) {
@@ -1328,34 +1503,37 @@ class _DefaultUpdatePanel extends StatelessWidget {
     }
   }
 
-  Widget _buildContent(BuildContext context) {
+  _StateVisualSpec get _visuals =>
+      _StateVisualSpec.forState(data.state, theme: theme);
+
+  Widget _buildHero(BuildContext context) {
     final state = data.state;
     final resolvedIcon = iconBuilder?.call(context, state);
+    final gradient = theme.heroGradient ?? _visuals.gradient;
+
+    return Align(
+      alignment: Alignment.center,
+      child: resolvedIcon ??
+          _AnimatedHeroBadge(
+            icon: _visuals.icon,
+            gradient: gradient,
+            glowColor: theme.heroGlowColor,
+            iconColor: theme.accentForegroundColor,
+            size: 54,
+          ),
+    );
+  }
+
+  Widget _buildContent(BuildContext context) {
+    final state = data.state;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: _crossAxisAlignment,
       children: [
-        Align(
-          alignment: _iconAlignment,
-          child: resolvedIcon ??
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: theme.accentColor.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: Center(
-                  child: Icon(
-                    state.kind == FirebaseUpdateKind.maintenance
-                        ? Icons.construction_rounded
-                        : Icons.system_update_alt_rounded,
-                    color: theme.accentColor,
-                    size: 26,
-                  ),
-                ),
-              ),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          child: _buildHero(context),
         ),
         const SizedBox(height: 18),
         Text(
@@ -1371,7 +1549,7 @@ class _DefaultUpdatePanel extends StatelessWidget {
               .merge(typography.titleStyle),
         ),
         if (state.message != null) ...[
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Text(
             state.message!,
             textAlign: _textAlign,
@@ -1386,43 +1564,68 @@ class _DefaultUpdatePanel extends StatelessWidget {
           ),
         ],
         if (state.patchNotes != null && state.patchNotes!.isNotEmpty) ...[
-          const SizedBox(height: 18),
-          SizedBox(
-            width: double.infinity,
-            child: Column(
-              crossAxisAlignment: _notesAxisAlignment,
-              children: [
-                Text(
-                  releaseNotesHeading,
-                  textAlign: _notesTextAlign,
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleSmall
-                      ?.copyWith(
-                        color: theme.contentColor,
-                        fontWeight: FontWeight.w700,
-                      )
-                      .merge(typography.releaseNotesHeadingStyle),
+          const SizedBox(height: 16),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: theme.noteBackgroundColor,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: theme.outlineColor.withValues(alpha: 0.75),
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: SizedBox(
+                width: double.infinity,
+                child: Column(
+                  crossAxisAlignment: _notesAxisAlignment,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.notes_rounded,
+                          size: 17,
+                          color: theme.accentColor,
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            releaseNotesHeading,
+                            textAlign: _notesTextAlign,
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleSmall
+                                ?.copyWith(
+                                  color: theme.contentColor,
+                                  fontWeight: FontWeight.w700,
+                                )
+                                .merge(typography.releaseNotesHeadingStyle),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    _PatchNotesContent(
+                      notes: state.patchNotes!,
+                      format: state.patchNotesFormat,
+                      alignment: notesAlignment,
+                      readMoreLabel: readMoreLabel,
+                      showLessLabel: showLessLabel,
+                      readMoreColor: theme.accentColor,
+                      readMoreStyleOverride: typography.readMoreStyle,
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodyMedium
+                          ?.copyWith(
+                            color: theme.contentColor.withValues(alpha: 0.82),
+                            height: 1.45,
+                          )
+                          .merge(typography.patchNotesStyle),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 8),
-                _PatchNotesContent(
-                  notes: state.patchNotes!,
-                  format: state.patchNotesFormat,
-                  alignment: notesAlignment,
-                  readMoreLabel: readMoreLabel,
-                  showLessLabel: showLessLabel,
-                  readMoreColor: theme.accentColor,
-                  readMoreStyleOverride: typography.readMoreStyle,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodyMedium
-                      ?.copyWith(
-                        color: theme.contentColor.withValues(alpha: 0.82),
-                        height: 1.45,
-                      )
-                      .merge(typography.patchNotesStyle),
-                ),
-              ],
+              ),
             ),
           ),
         ],
@@ -1431,6 +1634,10 @@ class _DefaultUpdatePanel extends StatelessWidget {
   }
 
   Widget _buildActions(BuildContext context) {
+    if (!_hasAnyActions) {
+      return const SizedBox.shrink();
+    }
+
     void handlePrimary() {
       data.onUpdateClick?.call();
       if (data.dismissOnUpdateClick) {
@@ -1459,6 +1666,7 @@ class _DefaultUpdatePanel extends StatelessWidget {
             child: OutlinedButton(
               onPressed: handleSecondary,
               style: OutlinedButton.styleFrom(
+                backgroundColor: theme.surfaceColor.withValues(alpha: 0.92),
                 foregroundColor: theme.contentColor,
                 side: BorderSide(color: theme.outlineColor),
                 minimumSize: const Size.fromHeight(54),
@@ -1481,6 +1689,8 @@ class _DefaultUpdatePanel extends StatelessWidget {
               style: FilledButton.styleFrom(
                 backgroundColor: theme.accentColor,
                 foregroundColor: theme.accentForegroundColor,
+                elevation: 0,
+                shadowColor: theme.accentColor.withValues(alpha: 0.28),
                 minimumSize: const Size.fromHeight(54),
                 textStyle: typography.primaryButtonStyle,
                 shape: RoundedRectangleBorder(
@@ -1499,7 +1709,7 @@ class _DefaultUpdatePanel extends StatelessWidget {
         children: [
           actionRow,
           Padding(
-            padding: const EdgeInsets.only(top: 8),
+            padding: const EdgeInsets.only(top: 4),
             child: Center(
               child: TextButton(
                 onPressed: handleTertiary,
@@ -1520,36 +1730,258 @@ class _DefaultUpdatePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final panelPadding = _hasAnyActions
+        ? const EdgeInsets.fromLTRB(18, 16, 18, 18)
+        : const EdgeInsets.fromLTRB(20, 18, 20, 22);
+
+    final decoratedChild = DecoratedBox(
+      decoration: BoxDecoration(gradient: theme.panelGradient),
+      child: Padding(
+        padding: panelPadding,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: _crossAxisAlignment,
+          children: [
+            _buildContent(context),
+            if (_hasAnyActions) ...[
+              const SizedBox(height: 16),
+              _buildActions(context),
+            ],
+          ],
+        ),
+      ),
+    );
+
     if (scrollable) {
-      // Content scrolls; action buttons stay pinned at the bottom.
-      return Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Flexible(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-              child: _buildContent(context),
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          if (!constraints.hasBoundedHeight) {
+            return SingleChildScrollView(
+              padding: EdgeInsets.only(bottom: extraBottomPadding),
+              child: decoratedChild,
+            );
+          }
+
+          return ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: constraints.maxHeight),
+            child: Padding(
+              padding: EdgeInsets.only(bottom: extraBottomPadding),
+              child: DecoratedBox(
+                decoration: BoxDecoration(gradient: theme.panelGradient),
+                child: Padding(
+                  padding: panelPadding,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: _crossAxisAlignment,
+                    children: [
+                      Flexible(
+                        fit: FlexFit.loose,
+                        child: SingleChildScrollView(
+                          child: _buildContent(context),
+                        ),
+                      ),
+                      if (_hasAnyActions) ...[
+                        const SizedBox(height: 16),
+                        _buildActions(context),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-            child: _buildActions(context),
-          ),
-          if (extraBottomPadding > 0) SizedBox(height: extraBottomPadding),
-        ],
+          );
+        },
       );
     }
 
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: _crossAxisAlignment,
-        children: [
-          _buildContent(context),
-          const SizedBox(height: 20),
-          _buildActions(context),
-        ],
+    return decoratedChild;
+  }
+}
+
+class _StateVisualSpec {
+  const _StateVisualSpec({
+    required this.icon,
+    required this.gradient,
+  });
+
+  factory _StateVisualSpec.forState(
+    FirebaseUpdateState state, {
+    required _ResolvedPresentationTheme theme,
+  }) {
+    switch (state.kind) {
+      case FirebaseUpdateKind.forceUpdate:
+        return _StateVisualSpec(
+          icon: Icons.rocket_launch_rounded,
+          gradient: theme.heroGradient ??
+              const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFFF6B4A),
+                  Color(0xFFFFB14A),
+                  Color(0xFFB45CFF),
+                ],
+              ),
+        );
+      case FirebaseUpdateKind.maintenance:
+        return _StateVisualSpec(
+          icon: Icons.construction_rounded,
+          gradient: theme.heroGradient ??
+              const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFAF6EFF),
+                  Color(0xFFFF8F62),
+                  Color(0xFFFFD772),
+                ],
+              ),
+        );
+      case FirebaseUpdateKind.shorebirdPatch:
+        return _StateVisualSpec(
+          icon: Icons.auto_fix_high_rounded,
+          gradient: theme.heroGradient ??
+              const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFF3D74FF),
+                  Color(0xFF45C4FF),
+                  Color(0xFF8A5DFF),
+                ],
+              ),
+        );
+      case FirebaseUpdateKind.optionalUpdate:
+      case FirebaseUpdateKind.idle:
+      case FirebaseUpdateKind.upToDate:
+        return _StateVisualSpec(
+          icon: Icons.system_update_alt_rounded,
+          gradient: theme.heroGradient ??
+              const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFFF7B54),
+                  Color(0xFFFFC24D),
+                  Color(0xFFE779B8),
+                ],
+              ),
+        );
+    }
+  }
+
+  final IconData icon;
+  final Gradient gradient;
+}
+
+class _AnimatedHeroBadge extends StatelessWidget {
+  const _AnimatedHeroBadge({
+    required this.icon,
+    required this.gradient,
+    required this.glowColor,
+    required this.iconColor,
+    required this.size,
+  });
+
+  final IconData icon;
+  final Gradient gradient;
+  final Color glowColor;
+  final Color iconColor;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      duration: const Duration(milliseconds: 650),
+      curve: Curves.easeOutBack,
+      tween: Tween(begin: 0, end: 1),
+      builder: (context, value, child) {
+        final scale = lerpDouble(0.90, 1.0, value)!;
+        final angle = lerpDouble(-0.08, 0.0, value)!;
+        final floatOffset = lerpDouble(8, 0, value)!;
+
+        return Transform.translate(
+          offset: Offset(0, floatOffset),
+          child: Transform.rotate(
+            angle: angle,
+            child: Transform.scale(scale: scale, child: child),
+          ),
+        );
+      },
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            DecoratedBox(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: glowColor.withValues(alpha: 0.28),
+                    blurRadius: 34,
+                    spreadRadius: 3,
+                  ),
+                ],
+              ),
+              child: SizedBox(
+                width: size * 0.78,
+                height: size * 0.78,
+              ),
+            ),
+            Container(
+              width: size,
+              height: size,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: gradient,
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.42),
+                  width: 1.4,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 16,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+            ),
+            Positioned(
+              top: 14,
+              right: 18,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.28),
+                ),
+                child: const SizedBox(width: 10, height: 10),
+              ),
+            ),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    Colors.white.withValues(alpha: 0.28),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+              child: SizedBox(
+                width: size * 0.94,
+                height: size * 0.94,
+              ),
+            ),
+            Icon(
+              icon,
+              size: size * 0.4,
+              color: iconColor,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -2083,6 +2515,12 @@ class _ResolvedPresentationTheme {
     required this.surfaceColor,
     required this.contentColor,
     required this.outlineColor,
+    required this.heroGradient,
+    required this.panelGradient,
+    required this.heroGlowColor,
+    required this.noteBackgroundColor,
+    required this.statusBackgroundColor,
+    required this.statusForegroundColor,
   });
 
   factory _ResolvedPresentationTheme.from(
@@ -2090,13 +2528,37 @@ class _ResolvedPresentationTheme {
     FirebaseUpdatePresentationTheme theme,
   ) {
     final colorScheme = Theme.of(context).colorScheme;
+    final accent = theme.accentColor ?? colorScheme.primary;
+    final surface = theme.surfaceColor ?? colorScheme.surfaceContainerHighest;
+    final hslAccent = HSLColor.fromColor(accent);
+    final darkerAccent = hslAccent
+        .withLightness((hslAccent.lightness - 0.24).clamp(0.0, 1.0))
+        .toColor();
+
     return _ResolvedPresentationTheme(
-      accentColor: theme.accentColor ?? colorScheme.primary,
+      accentColor: accent,
       accentForegroundColor:
           theme.accentForegroundColor ?? colorScheme.onPrimary,
-      surfaceColor: theme.surfaceColor ?? colorScheme.surfaceContainerHighest,
+      surfaceColor: surface,
       contentColor: theme.contentColor ?? colorScheme.onSurface,
       outlineColor: theme.outlineColor ?? colorScheme.outlineVariant,
+      heroGradient: theme.heroGradient,
+      panelGradient: theme.panelGradient ??
+          LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              accent.withValues(alpha: 0.10),
+              surface.withValues(alpha: 0.0),
+              darkerAccent.withValues(alpha: 0.08),
+            ],
+          ),
+      heroGlowColor: theme.heroGlowColor ?? accent,
+      noteBackgroundColor:
+          theme.noteBackgroundColor ?? accent.withValues(alpha: 0.08),
+      statusBackgroundColor:
+          theme.statusBackgroundColor ?? accent.withValues(alpha: 0.12),
+      statusForegroundColor: theme.statusForegroundColor ?? darkerAccent,
     );
   }
 
@@ -2105,4 +2567,10 @@ class _ResolvedPresentationTheme {
   final Color surfaceColor;
   final Color contentColor;
   final Color outlineColor;
+  final Gradient? heroGradient;
+  final Gradient? panelGradient;
+  final Color heroGlowColor;
+  final Color noteBackgroundColor;
+  final Color statusBackgroundColor;
+  final Color statusForegroundColor;
 }

@@ -237,6 +237,11 @@ class FirebaseUpdatePresentationTheme {
     this.dialogBackgroundBlurSigma = 20.0,
     this.bottomSheetBackgroundBlurSigma = 20.0,
     this.heroGradient,
+    this.panelGradient,
+    this.heroGlowColor,
+    this.noteBackgroundColor,
+    this.statusBackgroundColor,
+    this.statusForegroundColor,
     this.dialogBorderRadius = const BorderRadius.all(Radius.circular(28)),
     this.sheetBorderRadius = const BorderRadius.vertical(
       top: Radius.circular(32),
@@ -281,6 +286,32 @@ class FirebaseUpdatePresentationTheme {
 
   /// Optional hero gradient painted on the inner update card.
   final Gradient? heroGradient;
+
+  /// Optional surface gradient layered behind the default panel content.
+  ///
+  /// Useful when you want the default dialog / sheet to feel more branded
+  /// without replacing it entirely with a custom widget.
+  final Gradient? panelGradient;
+
+  /// Optional glow color used behind the hero badge.
+  ///
+  /// Defaults to a translucent version of [accentColor].
+  final Color? heroGlowColor;
+
+  /// Background color for the release-notes container in the default UI.
+  ///
+  /// Defaults to a low-alpha tint derived from [accentColor].
+  final Color? noteBackgroundColor;
+
+  /// Background color for the status chip shown above the title.
+  ///
+  /// Defaults to a low-alpha tint derived from [accentColor].
+  final Color? statusBackgroundColor;
+
+  /// Foreground color for the status chip text and icon.
+  ///
+  /// Defaults to a darker accent-derived color when possible.
+  final Color? statusForegroundColor;
 
   /// Border radius applied to the dialog container.
   final BorderRadiusGeometry dialogBorderRadius;
