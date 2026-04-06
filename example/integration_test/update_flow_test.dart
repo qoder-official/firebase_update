@@ -273,7 +273,11 @@ void main() {
       await tester.ensureVisible(button);
       await tester.pumpAndSettle();
       await tester.tap(button);
-      await _waitFor(tester, find.text('Platform maintenance'));
+      await _waitFor(
+        tester,
+        find.text('Platform maintenance'),
+        timeout: const Duration(seconds: 15),
+      );
 
       expect(find.text('Platform maintenance'), findsOneWidget);
       expect(find.text('Status: under maintenance'), findsOneWidget);

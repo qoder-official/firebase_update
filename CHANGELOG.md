@@ -1,3 +1,38 @@
+## 1.0.7
+
+### Reliability hardening — bulletproof force updates
+
+This release focuses entirely on making force update and maintenance gates impossible to miss, dismiss, or bypass. Every edge case where a blocking dialog could be silently dropped has been addressed.
+
+### New features
+
+- **Store version fallback**: New `storeVersionSource` config option compares the running app version against the latest store version on startup. When the store is ahead, a cache-busting Remote Config fetch is triggered immediately — guaranteeing the update dialog appears even if the real-time listener missed the push. Ships two built-in implementations:
+  - `PlayStoreVersionSource` — scrapes the Google Play Store listing page using a multi-strategy version extraction heuristic (no extra dependencies, uses `dart:io`)
+  - `AppStoreVersionSource` — queries the iTunes Lookup API by bundle ID or track ID (no extra dependencies, uses `dart:io`)
+  - `CallbackStoreVersionSource` — wrap any `Future<String?>` callback for maximum flexibility (e.g. your own backend API)
+- **Periodic re-check timer**: New `recheckInterval` config option (e.g. `Duration(hours: 6)`) starts a safety-net timer that re-fetches Remote Config on a schedule. Each tick runs the full reliability check: store version comparison first, then a cache-busting or regular RC fetch as appropriate
+- **App lifecycle resume re-check**: New `checkStoreVersionOnResume` config flag. When enabled alongside a `storeVersionSource`, every app foreground triggers a store version comparison and cache-busting fetch if the app is behind — catches the "went to store, didn't update, came back" scenario
+- **Blocking state re-emit on resume**: Force update and maintenance states are automatically re-emitted when the app returns to the foreground, so the dialog re-presents itself even if it was somehow dismissed during the app-switch
+
+### Real-time listener resilience
+
+- **Exponential backoff retry for `onConfigUpdated`**: The real-time Remote Config stream (`onConfigUpdated`) now wraps in a retry loop with exponential backoff (2s, 4s, 8s, 16s, 32s — up to 5 attempts). This fixes the core issue where the stream silently dies in release builds due to Android battery optimization (Doze), network changes, or gRPC transport errors. On each successful event the retry counter resets to zero
+- **Cache-busting fetch (`fetchPayloadFresh`)**: New method on `RemoteConfigPayloadSource` that temporarily sets `minimumFetchInterval` to `Duration.zero` before fetching, then restores the caller's preferred interval. Used by the store version fallback and periodic re-check to bypass stale cached responses
+
+### Presentation hardening
+
+- **Navigator mount retry (50 frames)**: When the navigator context is not yet mounted at the time a blocking state is emitted (e.g. `initialize()` runs before the widget tree is built), the presenter now retries across up to 50 post-frame callbacks for force update and maintenance states. Non-blocking states get a single retry
+- **3-second blocking retry timer**: After emitting a force update or maintenance state, a delayed 3-second timer re-invokes the presenter as a safety net. Catches silent failures from context races, hot reloads, or generation counter mismatches
+- **`onError` handler on real-time subscription**: Errors that propagate past the stream's internal retry are now caught gracefully instead of crashing. The package falls back to the last known state and relies on periodic/lifecycle re-checks
+
+### Bug fixes
+
+- **Real-time updates silently failing in release mode**: Root cause was `onConfigUpdated` stream dying without notification in release builds. Fixed with the retry+backoff mechanism described above
+
+### Code quality
+
+- Removed redundant `package:flutter/foundation.dart` import from `firebase_update_config.dart` — all used symbols are re-exported by `package:flutter/widgets.dart`. Clears the `unnecessary_import` lint that pub.dev static analysis was flagging
+
 ## 1.0.6
 
 ### UI refresh

@@ -47,6 +47,11 @@ class DefaultUpdatePresenter {
   // Concurrency guards
   // ---------------------------------------------------------------------------
 
+  /// Maximum number of frames the presenter will wait for the navigator to
+  /// mount before giving up on showing a blocking dialog. At ~16ms per frame
+  /// this is roughly 800ms — generous enough for the heaviest app startup.
+  static const int _kMaxMountRetries = 50;
+
   // Incremented each time presentation ownership changes (new state committed,
   // upToDate dismisses, reset called).  Any callback or Future that was
   // scheduled under an older generation silently aborts, preventing stale
@@ -264,6 +269,38 @@ class DefaultUpdatePresenter {
     );
   }
 
+  /// Schedules a post-frame callback that re-invokes [presentIfNeeded].
+  ///
+  /// For blocking states (force update / maintenance) the callback re-schedules
+  /// itself up to [retriesRemaining] times if the navigator is still not
+  /// mounted. This prevents a force update from being silently dropped when
+  /// [initialize] runs before the widget tree is fully built.
+  void _deferUntilMounted({
+    required FirebaseUpdateState state,
+    required FirebaseUpdateConfig config,
+    required GlobalKey<NavigatorState>? navigatorKey,
+    required int retriesRemaining,
+  }) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx =
+          navigatorKey?.currentContext ?? navigatorKey?.currentState?.context;
+      if (ctx != null) {
+        presentIfNeeded(
+            state: state, config: config, navigatorKey: navigatorKey);
+        return;
+      }
+      // Still not mounted — retry for blocking states.
+      if (retriesRemaining > 1) {
+        _deferUntilMounted(
+          state: state,
+          config: config,
+          navigatorKey: navigatorKey,
+          retriesRemaining: retriesRemaining - 1,
+        );
+      }
+    });
+  }
+
   void presentIfNeeded({
     required FirebaseUpdateState state,
     required FirebaseUpdateConfig config,
@@ -397,15 +434,17 @@ class DefaultUpdatePresenter {
         navigatorKey.currentContext ?? navigatorKey.currentState?.context;
     if (context == null) {
       // Navigator not ready yet — defer to the next frame.
-      // The generation is NOT bumped here because no presentation has been
-      // committed; the callback will re-enter and commit on the next frame.
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        presentIfNeeded(
-          state: state,
-          config: config,
-          navigatorKey: navigatorKey,
-        );
-      });
+      // For blocking states (force update / maintenance) we retry persistently
+      // across multiple frames because missing a force update is unacceptable.
+      // For non-blocking states a single retry is sufficient.
+      final retriesRemaining =
+          _isBlockingKind(state.kind) ? _kMaxMountRetries : 1;
+      _deferUntilMounted(
+        state: state,
+        config: config,
+        navigatorKey: navigatorKey,
+        retriesRemaining: retriesRemaining,
+      );
       return;
     }
 

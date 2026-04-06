@@ -7,11 +7,12 @@ Flutter force update, maintenance mode, patch notes, and custom update UI driven
 
 `firebase_update` gives you one Remote Config payload and one package that can:
 
-- block old builds with a force update
+- block old builds with a force update that cannot be bypassed
 - show dismissible optional updates with snooze and skip-version behavior
 - turn on maintenance mode instantly
 - render patch notes in plain text or HTML
 - react to real-time Remote Config changes without an app restart
+- detect outdated versions via app store checks and force a fresh config fetch
 - use package-managed UI or fully custom surfaces
 
 ## Screenshots
@@ -44,16 +45,21 @@ Most update-gate packages handle only one narrow case. Production apps usually n
 
 ## Features
 
-- Real-time Remote Config listening
+- Real-time Remote Config listening with automatic retry and exponential backoff
 - Optional update dialog or bottom sheet
-- Force update dialog or bottom sheet
+- Force update dialog or bottom sheet — inescapable, re-shown on app resume
 - Maintenance mode dialog, sheet, or fully custom blocking surface
+- Store version fallback — detects outdated builds via Play Store / App Store and forces a cache-busting config fetch
+- Periodic re-check timer — safety net for long-running sessions
+- App lifecycle resume check — re-verifies on every foreground
 - Snooze with version-aware reset
 - Persistent skip-version
 - Plain text and HTML patch notes
 - `FirebaseUpdateBuilder` for reactive inline UI
 - `FirebaseUpdateCard` for drop-in in-app surfaces
 - Presentation theming, typography, labels, and icon overrides
+- Analytics callbacks (`onDialogShown`, `onDialogDismissed`, `onSnoozed`, `onVersionSkipped`)
+- Allowed flavors whitelist — silence update UI in staging builds
 - `allowDebugBack` for debug-only escape on blocking overlays
 - `onBeforePresent` hook for preloading GIFs, images, or any async dependencies before showing an overlay
 - Shorebird patch surface support
@@ -293,6 +299,89 @@ FirebaseUpdateConfig(
   },
   maintenanceWidget: (context, data) => const MyFullScreenMaintenance(),
 )
+```
+
+## Reliability
+
+`firebase_update` is designed so that no user ever misses a force update. Multiple independent layers work together to guarantee the update dialog appears.
+
+### Store version fallback
+
+Check the app store on startup and on every app foreground. If the store has a newer version than the running build, force a cache-busting Remote Config fetch that bypasses Firebase's local cache.
+
+```dart
+import 'dart:io';
+import 'package:firebase_update/firebase_update.dart';
+
+FirebaseUpdateConfig(
+  storeVersionSource: Platform.isAndroid
+      ? PlayStoreVersionSource('com.example.app')
+      : AppStoreVersionSource(bundleId: 'com.example.app'),
+  checkStoreVersionOnResume: true,
+)
+```
+
+Three built-in implementations are provided:
+
+- `PlayStoreVersionSource('com.example.app')` — scrapes the Play Store listing page using a multi-strategy version heuristic. No extra dependencies. Note: scraping is inherently fragile; prefer `CallbackStoreVersionSource` backed by your own API for maximum reliability.
+- `AppStoreVersionSource(bundleId: 'com.example.app')` — queries the iTunes Lookup API. Accepts an optional `country` parameter (ISO 3166-1 alpha-2, defaults to `'us'`) for apps published in specific storefronts.
+- `CallbackStoreVersionSource(() => myApi.getLatestVersion())` — wraps any `Future<String?>` callback.
+
+### Periodic re-check
+
+Add a timer that re-fetches Remote Config at a fixed interval, independent of the real-time listener. Each tick runs the full store-version-then-RC flow.
+
+```dart
+FirebaseUpdateConfig(
+  recheckInterval: const Duration(hours: 6),
+)
+```
+
+### Real-time listener resilience
+
+The `onConfigUpdated` stream can silently die in release builds due to battery optimization, network changes, or gRPC transport errors. The package automatically reconnects with exponential backoff (up to 5 retries: 2s, 4s, 8s, 16s, 32s).
+
+### Force update presentation hardening
+
+Force update and maintenance dialogs have three additional safety mechanisms:
+
+- **Navigator mount retry** — if the navigator isn't ready when the state is resolved (common during early bootstrap), the presenter retries across up to 50 frames (~800ms) instead of giving up after one
+- **Resume re-present** — an `AppLifecycleListener` re-emits any active blocking state on every app foreground, so the dialog reappears if the user went to the store and came back without updating
+- **3-second safety net** — if a blocking state is still active 3 seconds after emission, the presenter is invoked again to catch any silent failure
+
+### Reliability summary
+
+| Layer | Trigger | Catches |
+| --- | --- | --- |
+| Real-time listener | Server push | Instant config changes |
+| Retry + backoff | Stream error | Dropped connections in release |
+| Store version fallback | `initialize()` | Missed RC updates on cold start |
+| Lifecycle resume check | App foreground | Backgrounded for hours/days |
+| Periodic re-check | Timer | Long-running foreground sessions |
+| Navigator mount retry | Post-frame loop | Early bootstrap timing |
+| Resume re-present | App foreground | User returned from store without updating |
+| Blocking retry timer | 3-second delay | Any silent presenter failure |
+
+### Manual lifecycle pattern
+
+If you prefer to drive checks yourself instead of using the built-in timer:
+
+```dart
+late final AppLifecycleListener _lifecycleListener;
+
+@override
+void initState() {
+  super.initState();
+  _lifecycleListener = AppLifecycleListener(
+    onResume: () => FirebaseUpdate.instance.checkNow(),
+  );
+}
+
+@override
+void dispose() {
+  _lifecycleListener.dispose();
+  super.dispose();
+}
 ```
 
 ## Custom UI

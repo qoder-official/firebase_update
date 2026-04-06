@@ -1,12 +1,12 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
 import '../models/firebase_update_state.dart';
 import '../presentation/firebase_update_presentation.dart';
 import '../services/firebase_update_patch_source.dart';
 import '../services/firebase_update_preferences_store.dart';
+import '../services/store_version_source.dart';
 import 'firebase_update_store_urls.dart';
 
 /// Configuration for `firebase_update`.
@@ -72,6 +72,9 @@ class FirebaseUpdateConfig {
     this.onPatchApplied,
     this.shorebirdPatchWidget,
     this.preferencesStore,
+    this.storeVersionSource,
+    this.checkStoreVersionOnResume = false,
+    this.recheckInterval,
   });
 
   /// The Remote Config parameter key whose value is a JSON object containing
@@ -340,6 +343,61 @@ class FirebaseUpdateConfig {
   /// Defaults to [SharedPreferencesFirebaseUpdateStore]. Inject a custom
   /// implementation for encrypted storage, database-backed storage, etc.
   final FirebaseUpdatePreferencesStore? preferencesStore;
+
+  // ---------------------------------------------------------------------------
+  // Store version fallback
+  // ---------------------------------------------------------------------------
+
+  /// Optional source for the latest version available on the app store.
+  ///
+  /// When provided, the package compares the running app version against the
+  /// store version during [FirebaseUpdate.initialize]. If the store is ahead,
+  /// a fresh Remote Config fetch is forced — guaranteeing the update dialog
+  /// appears even when the real-time listener missed the change.
+  ///
+  /// The package ships two built-in implementations:
+  /// - [PlayStoreVersionSource] for Google Play
+  /// - [AppStoreVersionSource] for the Apple App Store
+  ///
+  /// You can also provide a simple callback:
+  /// ```dart
+  /// storeVersionSource: CallbackStoreVersionSource(
+  ///   () => myApi.getLatestVersion(),
+  /// ),
+  /// ```
+  final StoreVersionSource? storeVersionSource;
+
+  /// Whether to automatically re-run the store version check every time the
+  /// app returns to the foreground.
+  ///
+  /// Requires [storeVersionSource] to be set. When `true`, an
+  /// [AppLifecycleListener] is registered during [FirebaseUpdate.initialize]
+  /// that calls [StoreVersionSource.getStoreVersion] on every resume. If the
+  /// store is ahead of the running version, a cache-busting Remote Config
+  /// fetch is triggered immediately.
+  ///
+  /// Defaults to `false`. Set to `true` for the strongest possible guarantee
+  /// that users see the update dialog after foregrounding the app.
+  final bool checkStoreVersionOnResume;
+
+  // ---------------------------------------------------------------------------
+  // Periodic re-check
+  // ---------------------------------------------------------------------------
+
+  /// Interval at which the package automatically re-fetches Remote Config
+  /// and re-evaluates the update state.
+  ///
+  /// When `null` (the default), no periodic timer is started — the package
+  /// relies solely on real-time listeners and manual [FirebaseUpdate.checkNow]
+  /// calls.
+  ///
+  /// Set this to e.g. `Duration(hours: 6)` for a periodic safety net that
+  /// catches missed real-time events. The timer is cancelled and recreated on
+  /// each call to [FirebaseUpdate.initialize].
+  ///
+  /// For manual lifecycle-driven checks, see the `checkNow()` +
+  /// `AppLifecycleListener` pattern in the README.
+  final Duration? recheckInterval;
 
   bool get resolvesOptionalUpdateAsBottomSheet =>
       useBottomSheetForOptionalUpdate ??

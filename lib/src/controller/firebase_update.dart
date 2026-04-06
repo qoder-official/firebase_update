@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 import '../config/firebase_update_config.dart';
 import '../core/firebase_update_payload_parser.dart';
 import '../core/firebase_update_state_resolver.dart';
+import '../core/version_comparator.dart';
 import '../models/firebase_update_kind.dart';
 import '../models/firebase_update_state.dart';
 import '../presentation/default_update_presenter.dart';
@@ -45,6 +46,13 @@ class FirebaseUpdate {
   /// The shared singleton instance.
   static final FirebaseUpdate instance = FirebaseUpdate._();
 
+  /// When `true`, the 3-second blocking-state retry timer is never created.
+  ///
+  /// Set this to `true` in test `setUp` so pending timers don't leak into
+  /// Flutter's `_verifyInvariants` check.  Has no effect in production.
+  @visibleForTesting
+  static bool disableBlockingRetryTimer = false;
+
   final StreamController<FirebaseUpdateState> _controller =
       StreamController<FirebaseUpdateState>.broadcast();
   final FirebaseUpdatePayloadParser _payloadParser =
@@ -55,10 +63,15 @@ class FirebaseUpdate {
   final RemoteConfigPayloadSource _remoteConfigPayloadSource;
   final DefaultUpdatePresenter _defaultUpdatePresenter;
 
+  final VersionComparator _versionComparator = const VersionComparator();
+
   FirebaseUpdateState _currentState = const FirebaseUpdateState.idle();
   GlobalKey<NavigatorState>? _navigatorKey;
   FirebaseUpdateConfig? _config;
   StreamSubscription<Map<String, dynamic>?>? _payloadSubscription;
+  Timer? _recheckTimer;
+  Timer? _blockingRetryTimer;
+  AppLifecycleListener? _lifecycleListener;
   String? _currentVersion;
   FirebaseUpdatePreferencesStore? _store;
 
@@ -118,10 +131,64 @@ class FirebaseUpdate {
     await _refreshFromRemoteConfig(config);
     if (config.listenToRealtimeUpdates) {
       _payloadSubscription =
-          _remoteConfigPayloadSource.watchPayload(config).listen((payload) {
-        _emit(_resolve(config: config, rawPayload: payload));
+          _remoteConfigPayloadSource.watchPayload(config).listen(
+        (payload) {
+          _emit(_resolve(config: config, rawPayload: payload));
+        },
+        onError: (Object error) {
+          // The watchPayload stream handles its own retry logic with
+          // exponential backoff. If an error still propagates here the
+          // stream has exhausted its retries — fall back to the last
+          // known state and rely on periodic / lifecycle re-checks.
+        },
+      );
+    }
+
+    // --- Store version fallback ---
+    // When a storeVersionSource is provided, compare the local version
+    // against the store version. If the store is ahead, force a cache-busting
+    // Remote Config fetch so the update dialog is guaranteed to appear.
+    if (config.storeVersionSource != null && _currentVersion != null) {
+      unawaited(_checkStoreVersionFallback(config));
+    }
+
+    // --- Periodic re-check timer ---
+    // Each tick runs the full reliability check: store version comparison
+    // followed by a cache-busting or regular RC fetch as appropriate.
+    _recheckTimer?.cancel();
+    _recheckTimer = null;
+    if (config.recheckInterval != null) {
+      _recheckTimer = Timer.periodic(config.recheckInterval!, (_) {
+        unawaited(_periodicCheck(config));
       });
     }
+
+    // --- App lifecycle listener ---
+    // Always registered. On resume:
+    // 1. If a blocking state (force update / maintenance) is active, re-emit
+    //    it so the dialog is re-presented in case the user went to the store,
+    //    didn't update, and came back.
+    // 2. If checkStoreVersionOnResume is true and a storeVersionSource is
+    //    provided, run the store-anchored version check + cache-bust.
+    _lifecycleListener?.dispose();
+    _lifecycleListener = AppLifecycleListener(
+      onResume: () {
+        // Re-present any blocking dialog that was dismissed while the
+        // user was in the store or app switcher.
+        final current = _currentState;
+        if (current.kind == FirebaseUpdateKind.forceUpdate ||
+            current.kind == FirebaseUpdateKind.maintenance) {
+          _emit(current);
+        }
+
+        // Store version fallback on resume (opt-in).
+        if (config.checkStoreVersionOnResume &&
+            config.storeVersionSource != null &&
+            _currentVersion != null) {
+          unawaited(_checkStoreVersionFallback(config));
+        }
+      },
+    );
   }
 
   /// Triggers an immediate Remote Config fetch and emits the resolved state.
@@ -255,6 +322,12 @@ class FirebaseUpdate {
   void debugReset() {
     unawaited(_payloadSubscription?.cancel());
     _payloadSubscription = null;
+    _recheckTimer?.cancel();
+    _recheckTimer = null;
+    _blockingRetryTimer?.cancel();
+    _blockingRetryTimer = null;
+    _lifecycleListener?.dispose();
+    _lifecycleListener = null;
     _config = null;
     _navigatorKey = null;
     _currentVersion = null;
@@ -290,6 +363,28 @@ class FirebaseUpdate {
         config: config,
         navigatorKey: _navigatorKey,
       );
+
+      // --- Force update / maintenance safety net ---
+      // Schedule a delayed re-presentation attempt for blocking states.
+      // If the presenter failed silently (context not mounted, generation
+      // race, hot reload, etc.) this retry ensures the dialog appears.
+      _blockingRetryTimer?.cancel();
+      _blockingRetryTimer = null;
+      if (!disableBlockingRetryTimer &&
+          (state.kind == FirebaseUpdateKind.forceUpdate ||
+              state.kind == FirebaseUpdateKind.maintenance)) {
+        _blockingRetryTimer = Timer(const Duration(seconds: 3), () {
+          _blockingRetryTimer = null;
+          // Only retry if we're still in the same blocking state.
+          if (_currentState.kind == state.kind) {
+            _defaultUpdatePresenter.presentIfNeeded(
+              state: _currentState,
+              config: config,
+              navigatorKey: _navigatorKey,
+            );
+          }
+        });
+      }
       // Check for Shorebird patches whenever the app is up to date.
       if (state.kind == FirebaseUpdateKind.upToDate &&
           config.patchSource != null) {
@@ -321,8 +416,62 @@ class FirebaseUpdate {
     }
   }
 
+  /// Unified periodic reliability check.
+  ///
+  /// If a [StoreVersionSource] is configured, checks the store first. When the
+  /// store is ahead the cache-busting fetch already handles RC. Otherwise
+  /// falls back to a regular RC fetch to pick up any other config changes.
+  Future<void> _periodicCheck(FirebaseUpdateConfig config) async {
+    if (config.storeVersionSource != null && _currentVersion != null) {
+      try {
+        final storeVersion =
+            await config.storeVersionSource!.getStoreVersion();
+        if (storeVersion != null &&
+            _versionComparator.compare(_currentVersion!, storeVersion) < 0) {
+          // Store is ahead — cache-bust.
+          await _refreshFromRemoteConfigFresh(config);
+          return;
+        }
+      } catch (_) {
+        // Fall through to regular fetch on store check failure.
+      }
+    }
+    // No store mismatch (or no store source) — still worth a regular fetch
+    // to pick up maintenance mode changes, copy updates, etc.
+    await _refreshFromRemoteConfig(config);
+  }
+
+  /// Compares the local app version against the store version. When the store
+  /// has a newer version, forces a cache-busting Remote Config re-fetch so the
+  /// update state is guaranteed to reflect the latest server values — even if
+  /// the real-time listener missed the push or the local RC cache is stale.
+  Future<void> _checkStoreVersionFallback(FirebaseUpdateConfig config) async {
+    try {
+      final storeVersion =
+          await config.storeVersionSource!.getStoreVersion();
+      if (storeVersion == null || _currentVersion == null) return;
+
+      // Store is ahead of the local version — cache-bust fetch.
+      if (_versionComparator.compare(_currentVersion!, storeVersion) < 0) {
+        await _refreshFromRemoteConfigFresh(config);
+      }
+    } catch (_) {
+      // Store check is a best-effort fallback; never block the lifecycle.
+    }
+  }
+
   Future<void> _refreshFromRemoteConfig(FirebaseUpdateConfig config) async {
     final payload = await _remoteConfigPayloadSource.fetchPayload(config);
+    _emit(_resolve(config: config, rawPayload: payload));
+  }
+
+  /// Like [_refreshFromRemoteConfig] but bypasses the RC cache by temporarily
+  /// setting `minimumFetchInterval` to `Duration.zero`.
+  Future<void> _refreshFromRemoteConfigFresh(
+    FirebaseUpdateConfig config,
+  ) async {
+    final payload =
+        await _remoteConfigPayloadSource.fetchPayloadFresh(config);
     _emit(_resolve(config: config, rawPayload: payload));
   }
 

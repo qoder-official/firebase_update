@@ -176,7 +176,12 @@ FirebaseUpdateBeforePresentCallback precacheExampleNetworkImages(
       );
 
       stream.addListener(listener);
-      await completer.future;
+      // Cap the wait per image so a slow/unavailable network doesn't block
+      // the overlay from appearing indefinitely.
+      await completer.future.timeout(
+        const Duration(seconds: 8),
+        onTimeout: () {},
+      );
     }
   };
 }

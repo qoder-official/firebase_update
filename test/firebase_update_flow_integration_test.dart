@@ -11,9 +11,11 @@ void main() {
 
   setUp(() {
     store = _InMemoryStore();
+    FirebaseUpdate.disableBlockingRetryTimer = true;
   });
 
   tearDown(() {
+    FirebaseUpdate.disableBlockingRetryTimer = false;
     FirebaseUpdate.instance.debugReset();
   });
 
