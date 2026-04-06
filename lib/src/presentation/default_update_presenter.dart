@@ -497,7 +497,11 @@ class DefaultUpdatePresenter {
           _isPresenting = false;
           return;
         }
-        config.onDialogShown?.call(state);
+        try {
+          config.onDialogShown?.call(state);
+        } catch (_) {
+          // Analytics must never prevent a critical update dialog from appearing.
+        }
         switch (state.kind) {
           case FirebaseUpdateKind.optionalUpdate:
             await _presentOptionalUpdate(context, state, config);
@@ -531,7 +535,11 @@ class DefaultUpdatePresenter {
           });
           return;
         }
-        config.onDialogDismissed?.call(state);
+        try {
+          config.onDialogDismissed?.call(state);
+        } catch (_) {
+          // Ignore — analytics must not affect post-dismiss cleanup.
+        }
       }),
     );
   }
@@ -547,7 +555,9 @@ class DefaultUpdatePresenter {
     // Immediately record snooze / skip when the user taps the button — before
     // the dialog closes — so the real-time snooze timer can start right away.
     void onLater() {
-      config.onOptionalLaterTap?.call();
+      try {
+        config.onOptionalLaterTap?.call();
+      } catch (_) {}
       if (versionBeingOffered != null) {
         final snoozeDuration = config.snoozeDuration;
         if (snoozeDuration != null) {
@@ -556,7 +566,9 @@ class DefaultUpdatePresenter {
           _snoozedForVersion = versionBeingOffered;
           unawaited(_store?.setSnoozedUntil(until));
           unawaited(_store?.setSnoozedForVersion(versionBeingOffered));
-          config.onSnoozed?.call(versionBeingOffered, snoozeDuration);
+          try {
+            config.onSnoozed?.call(versionBeingOffered, snoozeDuration);
+          } catch (_) {}
           // _lastNavigatorKey is guaranteed non-null here: presentIfNeeded
           // stores it before calling _presentOptionalUpdate.
           if (_lastNavigatorKey != null) {
@@ -578,7 +590,9 @@ class DefaultUpdatePresenter {
       if (versionBeingOffered != null) {
         _skippedVersion = versionBeingOffered;
         unawaited(_store?.setSkippedVersion(versionBeingOffered));
-        config.onVersionSkipped?.call(versionBeingOffered);
+        try {
+          config.onVersionSkipped?.call(versionBeingOffered);
+        } catch (_) {}
       }
     }
 
@@ -588,7 +602,9 @@ class DefaultUpdatePresenter {
       isBlocking: false,
       primaryLabel: labels.updateNow ?? 'Update now',
       onUpdateClick: () {
-        config.onOptionalUpdateTap?.call();
+        try {
+          config.onOptionalUpdateTap?.call();
+        } catch (_) {}
         _launchStore(
           context,
           packageName: config.packageName,
@@ -660,7 +676,9 @@ class DefaultUpdatePresenter {
       isBlocking: true,
       primaryLabel: labels.updateNow ?? 'Update now',
       onUpdateClick: () {
-        config.onForceUpdateTap?.call();
+        try {
+          config.onForceUpdateTap?.call();
+        } catch (_) {}
         _launchStore(
           context,
           packageName: config.packageName,

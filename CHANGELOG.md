@@ -1,3 +1,9 @@
+## 1.0.7+1
+
+### Bug fix
+
+- **Analytics callbacks silently killing dialog presentation**: All user-supplied analytics callbacks (`onDialogShown`, `onDialogDismissed`, `onSnoozed`, `onVersionSkipped`, `onOptionalUpdateTap`, `onForceUpdateTap`, `onOptionalLaterTap`) are now wrapped in individual try/catch blocks. Previously, an uncaught exception from `onDialogShown` would propagate before the `switch` statement that shows the dialog — silently dropping the overlay. A missing analytics package is not affected (null-safe `?.call()` handles that safely); only a non-null callback that throws was affected
+
 ## 1.0.7
 
 ### Reliability hardening — bulletproof force updates
